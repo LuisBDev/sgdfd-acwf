@@ -7,6 +7,7 @@ namespace ACWF.WebSocket.Messages;
 [JsonSerializable(typeof(AuthMessage))]
 [JsonSerializable(typeof(PdfDownloadMessage))]
 [JsonSerializable(typeof(RequestSignedFileMessage))]
+[JsonSerializable(typeof(AuthOkMessage))]
 [JsonSerializable(typeof(ConnectedMessage))]
 [JsonSerializable(typeof(PdfReceivedMessage))]
 [JsonSerializable(typeof(FirmaDisponibleMessage))]

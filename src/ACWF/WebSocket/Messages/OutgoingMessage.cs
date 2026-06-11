@@ -2,55 +2,64 @@ using System.Text.Json.Serialization;
 
 namespace ACWF.WebSocket.Messages;
 
-/// <summary>CONNECTED — sent immediately after WebSocket upgrade, before any other message.</summary>
+/// <summary>CONNECTED — enviado inmediatamente después del WebSocket upgrade, antes que cualquier otro mensaje.</summary>
 public sealed record ConnectedMessage(
-    [property: JsonPropertyName("version")] string Version,
+    [property: JsonPropertyName("version")]
+    string Version,
     [property: JsonPropertyName("status")] string Status,
-    [property: JsonPropertyName("watchDir")] string WatchDir)
+    [property: JsonPropertyName("watchDir")]
+    string WatchDir)
 {
-    [JsonPropertyName("type")]
-    public string Type { get; init; } = MessageType.Connected;
+    [JsonPropertyName("type")] public string Type { get; init; } = MessageType.Connected;
 }
 
-/// <summary>PDF_RECEIVED — confirms PDF written to disk.</summary>
+/// <summary>AUTH_OK — confirma que la autenticación fue exitosa.</summary>
+public sealed record AuthOkMessage
+{
+    [JsonPropertyName("type")] public string Type { get; init; } = MessageType.AuthOk;
+}
+
+/// <summary>PDF_RECEIVED — confirma que el PDF se escribió en disco.</summary>
 public sealed record PdfReceivedMessage(
-    [property: JsonPropertyName("filename")] string Filename)
+    [property: JsonPropertyName("filename")]
+    string Filename)
 {
-    [JsonPropertyName("type")]
-    public string Type { get; init; } = MessageType.PdfReceived;
+    [JsonPropertyName("type")] public string Type { get; init; } = MessageType.PdfReceived;
 }
 
-/// <summary>FIRMA_DISPONIBLE — notifies that the signed file is available.</summary>
+/// <summary>FIRMA_DISPONIBLE — notifica que el archivo firmado está disponible.</summary>
 public sealed record FirmaDisponibleMessage(
-    [property: JsonPropertyName("filename")] string Filename)
+    [property: JsonPropertyName("filename")]
+    string Filename)
 {
-    [JsonPropertyName("type")]
-    public string Type { get; init; } = MessageType.FirmaDisponible;
+    [JsonPropertyName("type")] public string Type { get; init; } = MessageType.FirmaDisponible;
 }
 
-/// <summary>SIGNED_FILE — announces binary signed file transfer. Next frame is binary.</summary>
+/// <summary>SIGNED_FILE — anuncia la transferencia binaria del archivo firmado. El siguiente frame es binario.</summary>
 public sealed record SignedFileMessage(
-    [property: JsonPropertyName("filename")] string Filename,
-    [property: JsonPropertyName("size")] long Size)
+    [property: JsonPropertyName("filename")]
+    string Filename,
+    [property: JsonPropertyName("expectedSize")]
+    long ExpectedSize)
 {
-    [JsonPropertyName("type")]
-    public string Type { get; init; } = MessageType.SignedFile;
+    [JsonPropertyName("type")] public string Type { get; init; } = MessageType.SignedFile;
 }
 
-/// <summary>FIRMA_TIMEOUT — signals timeout waiting for signed file.</summary>
+/// <summary>FIRMA_TIMEOUT — señala timeout esperando el archivo firmado.</summary>
 public sealed record FirmaTimeoutMessage(
-    [property: JsonPropertyName("filename")] string Filename,
-    [property: JsonPropertyName("timeoutSeconds")] int TimeoutSeconds)
+    [property: JsonPropertyName("filename")]
+    string Filename,
+    [property: JsonPropertyName("timeoutSeconds")]
+    int TimeoutSeconds)
 {
-    [JsonPropertyName("type")]
-    public string Type { get; init; } = MessageType.FirmaTimeout;
+    [JsonPropertyName("type")] public string Type { get; init; } = MessageType.FirmaTimeout;
 }
 
-/// <summary>ERROR — generic error response.</summary>
+/// <summary>ERROR — respuesta de error genérica.</summary>
 public sealed record ErrorMessage(
     [property: JsonPropertyName("code")] string Code,
-    [property: JsonPropertyName("message")] string Message)
+    [property: JsonPropertyName("message")]
+    string Message)
 {
-    [JsonPropertyName("type")]
-    public string Type { get; init; } = MessageType.Error;
+    [JsonPropertyName("type")] public string Type { get; init; } = MessageType.Error;
 }

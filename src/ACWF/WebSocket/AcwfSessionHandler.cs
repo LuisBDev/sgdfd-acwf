@@ -5,14 +5,14 @@ using ACWF.Firma;
 using ACWF.WebSocket.Messages;
 using Microsoft.Extensions.Logging;
 
-// Alias to resolve ambiguity: ACWF.System namespace would otherwise shadow System.Net/System.Text
+// Alias para resolver ambigüedad: el namespace ACWF.System sombrearía System.Net/System.Text
 using NativeWebSocket = global::System.Net.WebSockets.WebSocket;
 
 namespace ACWF.WebSocket;
 
 /// <summary>
-/// Manages the full lifecycle of one WebSocket session via a state machine.
-/// Instantiated per session by AcwfWebSocketMiddleware.
+/// Maneja el ciclo de vida completo de una sesión WebSocket vía una state machine.
+/// Se instancia por sesión desde AcwfWebSocketMiddleware.
 /// </summary>
 public sealed class AcwfSessionHandler
 {
@@ -55,14 +55,14 @@ public sealed class AcwfSessionHandler
 
         try
         {
-            // Step 1: Send CONNECTED immediately.
+            // Paso 1: Enviar CONNECTED inmediatamente.
             var connected = new ConnectedMessage(
                 Version: AgentVersion,
                 Status: "READY",
                 WatchDir: _watchDirectory);
             await SendJsonAsync(webSocket, connected, AcwfJsonContext.Default.ConnectedMessage, ct);
 
-            // Step 2: State machine loop.
+            // Paso 2: Loop de state machine.
             while (webSocket.State == WebSocketState.Open && !ct.IsCancellationRequested)
             {
                 var (kind, payload) = await ReceiveFrameAsync(webSocket, ct);
@@ -79,7 +79,7 @@ public sealed class AcwfSessionHandler
                     continue;
                 }
 
-                // Text frame — deserialize and dispatch.
+                // Text frame — deserializar y despachar.
                 if (payload is null) continue;
 
                 BaseMessage? baseMsg = JsonSerializer.Deserialize(payload, AcwfJsonContext.Default.BaseMessage);
@@ -107,7 +107,7 @@ public sealed class AcwfSessionHandler
             {
                 await SendErrorAndCloseAsync(webSocket, "INTERNAL_ERROR", ex.Message, 1011, ct);
             }
-            catch { /* Best-effort cleanup */ }
+            catch { /* Limpieza best-effort */ }
         }
         finally
         {
@@ -124,13 +124,14 @@ public sealed class AcwfSessionHandler
     {
         switch ((_state, messageType))
         {
-            // CONNECTED state: only AUTH is valid.
+            // Estado CONNECTED: solo AUTH es válido.
             case (SessionState.Connected, MessageType.Auth):
                 var authMsg = JsonSerializer.Deserialize(payload, AcwfJsonContext.Default.AuthMessage);
                 if (authMsg is null) break;
                 _authToken = authMsg.Token;
                 _state = SessionState.Authenticated;
                 _logger.LogInformation("[{SessionId}] AUTH received, state -> Authenticated", _sessionId);
+                await SendJsonAsync(webSocket, new AuthOkMessage(), AcwfJsonContext.Default.AuthOkMessage, ct);
                 break;
 
             case (SessionState.Connected, _):
@@ -138,7 +139,7 @@ public sealed class AcwfSessionHandler
                 await SendErrorAndCloseAsync(webSocket, "AUTH_REQUIRED", "Authentication required before sending data", 1008, ct);
                 return;
 
-            // AUTHENTICATED state: only PDF_DOWNLOAD is valid.
+            // Estado AUTHENTICATED: solo PDF_DOWNLOAD es válido.
             case (SessionState.Authenticated, MessageType.PdfDownload):
                 var pdfMsg = JsonSerializer.Deserialize(payload, AcwfJsonContext.Default.PdfDownloadMessage);
                 if (pdfMsg is null) break;
@@ -149,7 +150,7 @@ public sealed class AcwfSessionHandler
                     _sessionId, pdfMsg.Filename, pdfMsg.Size);
                 break;
 
-            // WATCHING state: REQUEST_SIGNED_FILE is valid.
+            // Estado WATCHING: REQUEST_SIGNED_FILE es válido.
             case (SessionState.WatchingFirma, MessageType.RequestSignedFile):
                 var reqMsg = JsonSerializer.Deserialize(payload, AcwfJsonContext.Default.RequestSignedFileMessage);
                 if (reqMsg is null) break;
@@ -203,14 +204,14 @@ public sealed class AcwfSessionHandler
             return;
         }
 
-        // File written — send confirmation and start watching.
+        // Archivo escrito — enviar confirmación y empezar a watch.
         await SendJsonAsync(webSocket, new PdfReceivedMessage(_currentFilename), AcwfJsonContext.Default.PdfReceivedMessage, ct);
 
         _watcherService.StartWatching(_currentFilename);
         _state = SessionState.WatchingFirma;
         _logger.LogInformation("[{SessionId}] File written to {Path}, state -> WatchingFirma", _sessionId, filePath);
 
-        // Launch watcher consumer concurrently (does not block the receive loop).
+        // Lanzar el watcher consumer concurrentemente (no bloquea el receive loop).
         _ = WatchFirmaAsync(webSocket, ct);
     }
 
@@ -227,7 +228,7 @@ public sealed class AcwfSessionHandler
                         string signedFilename = Path.GetFileName(firmaEvent.FilePath);
                         _logger.LogInformation("[{SessionId}] FIRMA_DISPONIBLE: {File}", _sessionId, signedFilename);
                         await SendJsonAsync(webSocket, new FirmaDisponibleMessage(signedFilename), AcwfJsonContext.Default.FirmaDisponibleMessage, ct);
-                        // State remains WatchingFirma until REQUEST_SIGNED_FILE is received.
+                        // El estado sigue WatchingFirma hasta que se recibe REQUEST_SIGNED_FILE.
                         break;
 
                     case FirmaEventType.Timeout:
@@ -257,7 +258,7 @@ public sealed class AcwfSessionHandler
         string signedFilename,
         CancellationToken ct)
     {
-        // Prefer the full path captured by WatchFirmaAsync; fall back to constructing from watch dir.
+        // Preferir la ruta completa capturada por WatchFirmaAsync; fallback a construir desde watch dir.
         string filePath = _firmaFilePath
             ?? Path.Combine(_watchDirectory, signedFilename);
 
@@ -280,12 +281,12 @@ public sealed class AcwfSessionHandler
             return;
         }
 
-        // Frame 1: JSON metadata.
+        // Frame 1: metadata JSON.
         await SendJsonAsync(webSocket,
             new SignedFileMessage(Path.GetFileName(filePath), fileSize),
             AcwfJsonContext.Default.SignedFileMessage, ct);
 
-        // Frame 2: binary file content in 64KB chunks.
+        // Frame 2: contenido binario del archivo en chunks de 64KB.
         try
         {
             await using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read,
@@ -317,7 +318,7 @@ public sealed class AcwfSessionHandler
             return;
         }
 
-        // Normal close after successful send.
+        // Cierre normal después del envío exitoso.
         await CloseWebSocketAsync(webSocket, WebSocketCloseStatus.NormalClosure, "Signing session complete", ct);
         _state = SessionState.Idle;
     }
