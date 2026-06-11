@@ -1,0 +1,60 @@
+name: Release Production
+
+on:
+  push:
+    tags:
+      - 'v[0-9]*'
+      # Exclude pre-release tags such as v1.0.0-beta or v1.0.0-dev.1
+      # GitHub Actions tag filters do not support negative lookahead;
+      # the job step below gates on exact semver production tags.
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate production tag
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          if ($tag -match '[-+]') {
+            Write-Host "Tag '$tag' looks like a pre-release. Skipping production release."
+            exit 1
+          }
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.x'
+
+      - name: Install Velopack CLI
+        run: dotnet tool install -g vpk
+
+      - name: Publish
+        env:
+          ASPNETCORE_ENVIRONMENT: Production
+        run: |
+          dotnet publish src/ACWF/ACWF.csproj `
+            -c Release `
+            -r win-x64 `
+            --self-contained false `
+            -o publish/
+
+      - name: Pack with Velopack
+        run: |
+          vpk pack `
+            --packId ACWF `
+            --packVersion ${{ github.ref_name }} `
+            --packDir publish/ `
+            --outputDir dist/ `
+            --icon src/ACWF/acwf.ico
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create ${{ github.ref_name }} dist/* `
+            --title "ACWF ${{ github.ref_name }}"

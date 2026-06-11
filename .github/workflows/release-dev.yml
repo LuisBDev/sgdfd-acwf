@@ -1,0 +1,49 @@
+name: Release Dev
+
+on:
+  push:
+    tags:
+      - '*-dev.*'
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.x'
+
+      - name: Install Velopack CLI
+        run: dotnet tool install -g vpk
+
+      - name: Publish
+        env:
+          ASPNETCORE_ENVIRONMENT: Development
+        run: |
+          dotnet publish src/ACWF/ACWF.csproj `
+            -c Release `
+            -r win-x64 `
+            --self-contained false `
+            -o publish/
+
+      - name: Pack with Velopack
+        run: |
+          vpk pack `
+            --packId ACWF-Dev `
+            --packVersion ${{ github.ref_name }} `
+            --packDir publish/ `
+            --outputDir dist/ `
+            --icon src/ACWF/acwf.ico
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create ${{ github.ref_name }} dist/* `
+            --prerelease `
+            --title "ACWF Dev ${{ github.ref_name }}"
