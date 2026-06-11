@@ -2,22 +2,22 @@ using System.Text.Json.Serialization;
 
 namespace ACWF.WebSocket.Messages;
 
-/// <summary>Discriminator record used to read the "type" field before full deserialization.</summary>
+/// <summary>Record discriminador usado para leer el campo "type" antes de la deserialización completa.</summary>
 public sealed record BaseMessage(
     [property: JsonPropertyName("type")] string Type);
 
-/// <summary>AUTH — Bearer token exchange. Must be the first message after CONNECTED.</summary>
+/// <summary>AUTH — intercambio de Bearer token. Debe ser el primer mensaje después de CONNECTED.</summary>
 public sealed record AuthMessage(
     [property: JsonPropertyName("type")] string Type,
     [property: JsonPropertyName("token")] string Token);
 
-/// <summary>PDF_DOWNLOAD — announces incoming PDF binary frame. Next frame is binary.</summary>
+/// <summary>PDF_DOWNLOAD — anuncia el incoming PDF binary frame. El siguiente frame es binario.</summary>
 public sealed record PdfDownloadMessage(
     [property: JsonPropertyName("type")] string Type,
     [property: JsonPropertyName("filename")] string Filename,
     [property: JsonPropertyName("size")] long Size);
 
-/// <summary>REQUEST_SIGNED_FILE — requests the signed PDF for sending back.</summary>
+/// <summary>REQUEST_SIGNED_FILE — solicita el PDF firmado para enviarlo de vuelta.</summary>
 public sealed record RequestSignedFileMessage(
     [property: JsonPropertyName("type")] string Type,
     [property: JsonPropertyName("filename")] string Filename);

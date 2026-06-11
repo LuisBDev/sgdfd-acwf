@@ -10,9 +10,9 @@ using Microsoft.Extensions.Options;
 namespace ACWF.System;
 
 /// <summary>
-/// Hosts the NotifyIcon on a dedicated STA thread.
-/// Implements IHostedService to integrate with Generic Host lifetime.
-/// Implements ITrayStateNotifier so other services can update icon state.
+/// Aloja el NotifyIcon en un thread STA dedicado.
+/// Implementa IHostedService para integrarse con Generic Host lifetime.
+/// Implementa ITrayStateNotifier para que otros servicios puedan actualizar el estado del icono.
 /// </summary>
 public sealed class TrayIconService : IHostedService, ITrayStateNotifier, IDisposable
 {
@@ -55,7 +55,7 @@ public sealed class TrayIconService : IHostedService, ITrayStateNotifier, IDispo
         _staThread.SetApartmentState(ApartmentState.STA);
         _staThread.Start();
 
-        // Wait until the STA thread has set up the SynchronizationContext.
+        // Esperar hasta que el thread STA haya configurado el SynchronizationContext.
         return _staReady.Task;
     }
 
@@ -87,7 +87,7 @@ public sealed class TrayIconService : IHostedService, ITrayStateNotifier, IDispo
             }
         }, null);
 
-        // Join with timeout to avoid blocking shutdown indefinitely.
+        // Join con timeout para evitar bloquear el shutdown indefinidamente.
         _staThread?.Join(TimeSpan.FromSeconds(3));
         return tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken);
     }

@@ -6,9 +6,9 @@ using Microsoft.Extensions.Options;
 namespace ACWF.Firma;
 
 /// <summary>
-/// Watches the WatchDirectory for a signed PDF file (suffix _F.pdf).
-/// Uses FileSystemWatcher on a thread-pool thread, Channel&lt;FirmaEvent&gt; to
-/// marshal events safely to the async session loop.
+/// Observa el WatchDirectory en busca de un PDF firmado (sufijo _F.pdf).
+/// Usa FileSystemWatcher en un thread del pool, Channel&lt;FirmaEvent&gt; para
+/// marshalling seguro de eventos al async session loop.
 /// </summary>
 public sealed class FirmaWatcherService : IFirmaWatcherService
 {
@@ -24,7 +24,7 @@ public sealed class FirmaWatcherService : IFirmaWatcherService
 
     public ChannelReader<FirmaEvent> Events => _channel.Reader;
 
-    // Exponential backoff delays: 50, 100, 200, 400, 800 ms (5 retries max)
+    // Delays de exponential backoff: 50, 100, 200, 400, 800 ms (5 retries máximo)
     private static readonly int[] BackoffDelaysMs = [50, 100, 200, 400, 800];
 
     public FirmaWatcherService(
@@ -52,7 +52,7 @@ public sealed class FirmaWatcherService : IFirmaWatcherService
         _timeoutCts = new CancellationTokenSource();
         var timeoutToken = _timeoutCts.Token;
 
-        // Schedule timeout task.
+        // Programar la tarea de timeout.
         _ = Task.Delay(TimeSpan.FromSeconds(_options.FirmaTimeoutSeconds), timeoutToken)
             .ContinueWith(
                 t => OnTimeout(t, originalFilename),
@@ -70,10 +70,10 @@ public sealed class FirmaWatcherService : IFirmaWatcherService
 
         _logger.LogInformation("Firma file event detected: {FilePath}", e.FullPath);
 
-        // Cancel timeout — file was detected.
+        // Cancelar timeout — el archivo fue detectado.
         _timeoutCts?.Cancel();
 
-        // Retry-read on thread pool to handle race condition with FirmaONPE still writing.
+        // Retry-read en thread pool para manejar race condition con FirmaONPE todavía escribiendo.
         _ = Task.Run(() => TryReadFileWithRetryAsync(e.FullPath));
     }
 
@@ -83,9 +83,9 @@ public sealed class FirmaWatcherService : IFirmaWatcherService
         {
             try
             {
-                // Attempt to open with FileShare.Read to verify the file is accessible.
+                // Intentar abrir con FileShare.Read para verificar que el archivo es accesible.
                 await using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-                // File is accessible — write success event.
+                // Archivo accesible — escribir evento de éxito.
                 _logger.LogInformation("Firma file is readable after {Attempt} attempt(s): {FilePath}", i + 1, path);
                 await _channel.Writer.WriteAsync(new FirmaEvent(FirmaEventType.FileReady, path)).ConfigureAwait(false);
                 return;
@@ -103,7 +103,7 @@ public sealed class FirmaWatcherService : IFirmaWatcherService
             }
         }
 
-        // All retries exhausted.
+        // Todos los retries agotados.
         _logger.LogError("Firma file still locked after all retries: {FilePath}", path);
         await _channel.Writer.WriteAsync(
             new FirmaEvent(FirmaEventType.Error, path, "FILE_LOCKED")).ConfigureAwait(false);
@@ -113,7 +113,7 @@ public sealed class FirmaWatcherService : IFirmaWatcherService
     {
         if (completedTask.IsCanceled)
         {
-            // File was detected before timeout — nothing to do.
+            // Archivo detectado antes del timeout — no hacer nada.
             return;
         }
 

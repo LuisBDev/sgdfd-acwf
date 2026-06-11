@@ -1,17 +1,17 @@
 namespace ACWF.System;
 
 /// <summary>
-/// Enforces single-instance behavior per environment using a named global Mutex.
-/// If the mutex is already held by another process, exits immediately with code 0.
+/// Aplica comportamiento de single-instance por environment usando un named global Mutex.
+/// Si el mutex ya está tomado por otro proceso, sale inmediatamente con código 0.
 /// </summary>
 public static class InstanceGuard
 {
     /// <summary>
-    /// Attempts to acquire the global mutex for the given environment variant.
-    /// Calls <see cref="Environment.Exit(int)"/> silently if another instance is already running.
+    /// Intenta adquirir el mutex global para la variante de environment dada.
+    /// Llama a <see cref="Environment.Exit(int)"/> silenciosamente si otra instancia ya está corriendo.
     /// </summary>
-    /// <param name="environment">Environment suffix: "Dev" or "Prod".</param>
-    /// <returns>An <see cref="IDisposable"/> that releases the mutex on disposal.</returns>
+    /// <param name="environment">Sufijo del environment: "Dev" o "Prod".</param>
+    /// <returns>Un <see cref="IDisposable"/> que libera el mutex al hacer dispose.</returns>
     public static IDisposable Acquire(string environment)
     {
         string mutexName = $"Global\\ACWF-{environment}";
@@ -19,7 +19,7 @@ public static class InstanceGuard
 
         if (!isNewInstance)
         {
-            // Another instance of the same variant is already running — exit silently.
+            // Otra instancia de la misma variante ya está corriendo — salir silenciosamente.
             mutex.Dispose();
             Environment.Exit(0);
         }
@@ -43,7 +43,7 @@ public static class InstanceGuard
             _disposed = true;
 
             try { _mutex.ReleaseMutex(); }
-            catch (ApplicationException) { /* already released */ }
+            catch (ApplicationException) { /* ya liberado */ }
 
             _mutex.Dispose();
         }

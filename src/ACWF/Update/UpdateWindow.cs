@@ -5,8 +5,8 @@ using ACWF.WebSocket;
 namespace ACWF.Update;
 
 /// <summary>
-/// Non-modal WinForms window showing update status and allowing the user to apply a pending update.
-/// Opened from the tray icon context menu.
+/// Ventana WinForms no-modal que muestra el estado del update y permite al usuario aplicar un update pendiente.
+/// Se abre desde el context menu del tray icon.
 /// </summary>
 public sealed class UpdateWindow : Form
 {

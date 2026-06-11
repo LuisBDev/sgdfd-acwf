@@ -3,15 +3,15 @@ using ACWF.Firma;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-// Alias to avoid ACWF.System shadowing System.Net.WebSockets
+// Alias para evitar que ACWF.System sombree System.Net.WebSockets
 using NativeWebSocket = global::System.Net.WebSockets.WebSocket;
 using WebSocketCloseStatus = global::System.Net.WebSockets.WebSocketCloseStatus;
 
 namespace ACWF.WebSocket;
 
 /// <summary>
-/// ASP.NET Core middleware that handles WebSocket upgrades on /acwf.
-/// Enforces Origin validation, single-session gate, and delegates to AcwfSessionHandler.
+/// Middleware de ASP.NET Core que maneja WebSocket upgrades en /acwf.
+/// Aplica validación de Origin, single-session gate, y delega a AcwfSessionHandler.
 /// </summary>
 public sealed class AcwfWebSocketMiddleware
 {
@@ -37,21 +37,21 @@ public sealed class AcwfWebSocketMiddleware
 
     public async Task InvokeAsync(HttpContext context)
     {
-        // Only handle requests to the /acwf endpoint.
+        // Solo manejar requests al endpoint /acwf.
         if (!context.Request.Path.Equals("/acwf", StringComparison.OrdinalIgnoreCase))
         {
             await _next(context);
             return;
         }
 
-        // Must be a WebSocket upgrade request.
+        // Debe ser un WebSocket upgrade request.
         if (!context.WebSockets.IsWebSocketRequest)
         {
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
             return;
         }
 
-        // Validate Origin header.
+        // Validar header Origin.
         if (!IsOriginAllowed(context.Request.Headers.Origin.ToString()))
         {
             _logger.LogWarning(
@@ -61,13 +61,13 @@ public sealed class AcwfWebSocketMiddleware
             return;
         }
 
-        // Attempt to acquire the single-session gate.
+        // Intentar adquirir el single-session gate.
         bool acquired = await _sessionGate.TryAcquireAsync(context.RequestAborted);
 
         if (!acquired)
         {
             _logger.LogWarning("WebSocket upgrade rejected — session already active (4002)");
-            // Must accept the upgrade before sending the close frame.
+            // Debe aceptar el upgrade antes de enviar el close frame.
             var busyWs = await context.WebSockets.AcceptWebSocketAsync();
             await busyWs.CloseAsync(
                 (WebSocketCloseStatus)4002,
@@ -76,7 +76,7 @@ public sealed class AcwfWebSocketMiddleware
             return;
         }
 
-        // Create a DI scope for this session (scoped services: FileDepositService, FirmaWatcherService).
+        // Crear un DI scope para esta sesión (scoped services: FileDepositService, FirmaWatcherService).
         await using var scope = _sp.CreateAsyncScope();
         var depositService = scope.ServiceProvider.GetRequiredService<IFileDepositService>();
         var watcherService = scope.ServiceProvider.GetRequiredService<IFirmaWatcherService>();

@@ -6,8 +6,8 @@ using Microsoft.Extensions.Options;
 namespace ACWF.Firma;
 
 /// <summary>
-/// Writes received PDF bytes to the configured watch directory (default C:\TFIRMA).
-/// Streaming write — does not buffer the entire file in memory.
+/// Escribe los bytes del PDF recibido en el watch directory configurado (default C:\TFIRMA).
+/// Escritura en streaming — no bufferiza el archivo completo en memoria.
 /// </summary>
 public sealed class FileDepositService : IFileDepositService
 {
@@ -56,7 +56,7 @@ public sealed class FileDepositService : IFileDepositService
 
     public async Task<string> DepositAsync(string filename, Stream content, CancellationToken ct)
     {
-        // Validate filename — reject path traversal and absolute paths.
+        // Validar filename — rechazar path traversal y rutas absolutas.
         if (string.IsNullOrWhiteSpace(filename)
             || filename.Contains("..")
             || filename.Contains(Path.DirectorySeparatorChar)
@@ -73,7 +73,7 @@ public sealed class FileDepositService : IFileDepositService
 
         string destPath = Path.Combine(_options.WatchDirectory, filename);
 
-        // Path traversal guard: confirm resolved path is within WatchDirectory.
+        // Guard de path traversal: confirmar que la ruta resuelta está dentro de WatchDirectory.
         string watchDirNormalized = Path.GetFullPath(_options.WatchDirectory);
         string destNormalized = Path.GetFullPath(destPath);
         if (!destNormalized.StartsWith(watchDirNormalized, StringComparison.OrdinalIgnoreCase))

@@ -3,17 +3,17 @@ using Microsoft.Win32;
 namespace ACWF.System;
 
 /// <summary>
-/// Manages Windows registry entries for the ACWF URI scheme (acwf:// and acwf-dev://).
-/// Operations are idempotent — safe to call on every launch and update.
+/// Administra las entradas del registro de Windows para el URI scheme de ACWF (acwf:// y acwf-dev://).
+/// Las operaciones son idempotentes — seguro llamarlas en cada launch y update.
 /// </summary>
 public static class UriSchemeHelper
 {
     /// <summary>
-    /// Registers the URI scheme under HKCU\Software\Classes so the browser can invoke the agent.
-    /// Creates or overwrites existing registration.
+    /// Registra el URI scheme bajo HKCU\Software\Classes para que el navegador pueda invocar al agente.
+    /// Crea o sobrescribe el registro existente.
     /// </summary>
-    /// <param name="scheme">The URI scheme name, e.g. "acwf" or "acwf-dev".</param>
-    /// <param name="exePath">Absolute path to the executable to invoke.</param>
+    /// <param name="scheme">Nombre del URI scheme, ej. "acwf" o "acwf-dev".</param>
+    /// <param name="exePath">Ruta absoluta al ejecutable a invocar.</param>
     public static void EnsureRegistered(string scheme, string exePath)
     {
         using RegistryKey classesRoot = Registry.CurrentUser.OpenSubKey(@"Software\Classes", writable: true)
@@ -30,10 +30,10 @@ public static class UriSchemeHelper
     }
 
     /// <summary>
-    /// Removes the URI scheme registration from the registry.
-    /// Called on Velopack uninstall event.
+    /// Elimina el registro del URI scheme del registro de Windows.
+    /// Se llama en el evento de uninstall de Velopack.
     /// </summary>
-    /// <param name="scheme">The URI scheme name to unregister.</param>
+    /// <param name="scheme">Nombre del URI scheme a desregistrar.</param>
     public static void Unregister(string scheme)
     {
         using RegistryKey? classesRoot = Registry.CurrentUser.OpenSubKey(@"Software\Classes", writable: true);

@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Velopack;
 
-// Avoid ambiguity with Velopack.UpdateOptions
+// Evitar ambigüedad con Velopack.UpdateOptions
 using AppUpdateOptions = ACWF.Configuration.UpdateOptions;
 using VelopackUpdateOptions = Velopack.UpdateOptions;
 
@@ -20,8 +20,8 @@ public interface IUpdateTrigger
 }
 
 /// <summary>
-/// Background service that periodically checks for Velopack updates.
-/// Downloads updates silently. Does not apply without explicit user action.
+/// Background service que periódicamente busca updates de Velopack.
+/// Descarga updates silenciosamente. No aplica sin acción explícita del usuario.
 /// </summary>
 public sealed class UpdateService : BackgroundService, IUpdateTrigger
 {
@@ -50,7 +50,7 @@ public sealed class UpdateService : BackgroundService, IUpdateTrigger
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // Wait for the agent to stabilize before the first check.
+        // Esperar a que el agente se estabilice antes del primer check.
         await Task.Delay(TimeSpan.FromSeconds(60), stoppingToken).ConfigureAwait(false);
 
         while (!stoppingToken.IsCancellationRequested)
@@ -98,7 +98,7 @@ public sealed class UpdateService : BackgroundService, IUpdateTrigger
                 "Update available: {Version}",
                 updateInfo.TargetFullRelease.Version);
 
-            // Download in background with progress reporting.
+            // Descargar en background con reporte de progreso.
             await _updateManager.DownloadUpdatesAsync(updateInfo, percent =>
             {
                 LastProgress = percent;
@@ -124,8 +124,8 @@ public sealed class UpdateService : BackgroundService, IUpdateTrigger
     }
 
     /// <summary>
-    /// Applies the pending update by restarting the process via Velopack.
-    /// Must only be called when no WebSocket session is active.
+    /// Aplica el update pendiente reiniciando el proceso vía Velopack.
+    /// Solo debe llamarse cuando no hay una sesión WebSocket activa.
     /// </summary>
     public void ApplyUpdate()
     {
@@ -139,7 +139,7 @@ public sealed class UpdateService : BackgroundService, IUpdateTrigger
             "Applying update {Version}",
             _pendingUpdate.TargetFullRelease.Version);
 
-        // UpdateInfo has an implicit conversion to VelopackAsset.
+        // UpdateInfo tiene una conversión implícita a VelopackAsset.
         _updateManager.WaitExitThenApplyUpdates((VelopackAsset)_pendingUpdate);
         _lifetime.StopApplication();
     }

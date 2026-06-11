@@ -3,9 +3,9 @@ using Microsoft.Extensions.Logging;
 namespace ACWF.System;
 
 /// <summary>
-/// Manages a lock file that advertises the active Kestrel port so other processes
-/// (e.g. a URI-scheme-activated second instance) can discover the running agent.
-/// The file is advisory — failures are logged as warnings, not errors.
+/// Administra un lock file que anuncia el puerto activo de Kestrel para que otros procesos
+/// (ej. una segunda instancia activada vía URI scheme) puedan descubrir el agente corriendo.
+/// El archivo es advisory — los fallos se loguean como warnings, no errores.
 /// </summary>
 public static class PortRegistry
 {
@@ -19,8 +19,8 @@ public static class PortRegistry
             "port.lock");
 
     /// <summary>
-    /// Writes the port number to the lock file.
-    /// Creates the directory if it does not exist.
+    /// Escribe el número de puerto en el lock file.
+    /// Crea el directorio si no existe.
     /// </summary>
     public static void Write(string packId, int port)
     {
@@ -37,7 +37,7 @@ public static class PortRegistry
     }
 
     /// <summary>
-    /// Deletes the lock file on graceful shutdown.
+    /// Elimina el lock file en apagado graceful.
     /// </summary>
     public static void Delete(string packId)
     {
@@ -51,12 +51,12 @@ public static class PortRegistry
         }
         catch (IOException)
         {
-            // Advisory file — swallow deletion errors.
+            // Archivo advisory — tragar errores de eliminación.
         }
     }
 
     /// <summary>
-    /// Reads and parses the port from the lock file. Returns null on any failure.
+    /// Lee y parsea el puerto desde el lock file. Retorna null en cualquier fallo.
     /// </summary>
     public static int? TryRead(string packId)
     {
