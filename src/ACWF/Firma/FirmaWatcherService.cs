@@ -6,7 +6,7 @@ using Microsoft.Extensions.Options;
 namespace ACWF.Firma;
 
 /// <summary>
-/// Observa el WatchDirectory en busca de un PDF firmado (sufijo _F.pdf).
+/// Observa el WatchDirectory en busca de un PDF firmado (sufijo [F].pdf).
 /// Usa FileSystemWatcher en un thread del pool, Channel&lt;FirmaEvent&gt; para
 /// marshalling seguro de eventos al async session loop.
 /// </summary>
@@ -37,13 +37,13 @@ public sealed class FirmaWatcherService : IFirmaWatcherService
 
     public void StartWatching(string originalFilename)
     {
-        _expectedFilename = Path.GetFileNameWithoutExtension(originalFilename) + "_F.pdf";
+        _expectedFilename = Path.GetFileNameWithoutExtension(originalFilename) + "[F].pdf";
         _logger.LogInformation("FirmaWatcher started. Expecting file: {ExpectedFile}", _expectedFilename);
 
         _watcher = new FileSystemWatcher(_options.WatchDirectory)
         {
             NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite,
-            Filter = "*_F.pdf",
+            Filter = "*[F].pdf",
             EnableRaisingEvents = true
         };
         _watcher.Created += OnFileEvent;
