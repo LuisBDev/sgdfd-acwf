@@ -1,11 +1,10 @@
+using System.Net.WebSockets;
 using ACWF.Configuration;
 using ACWF.Firma;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-
-// Alias para evitar que ACWF.System sombree System.Net.WebSockets
-using NativeWebSocket = global::System.Net.WebSockets.WebSocket;
-using WebSocketCloseStatus = global::System.Net.WebSockets.WebSocketCloseStatus;
+using NativeWebSocket = System.Net.WebSockets.WebSocket;
+using WebSocketCloseStatus = System.Net.WebSockets.WebSocketCloseStatus;
 
 namespace ACWF.WebSocket;
 
@@ -55,7 +54,7 @@ public sealed class AcwfWebSocketMiddleware
         if (!IsOriginAllowed(context.Request.Headers.Origin.ToString()))
         {
             _logger.LogWarning(
-                "WebSocket upgrade rejected — Origin '{Origin}' not in AllowedOrigins",
+                "Upgrade WebSocket rechazado — el Origin '{Origin}' no está en AllowedOrigins",
                 context.Request.Headers.Origin.ToString());
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
             return;
@@ -66,7 +65,7 @@ public sealed class AcwfWebSocketMiddleware
 
         if (!acquired)
         {
-            _logger.LogWarning("WebSocket upgrade rejected — session already active (4002)");
+            _logger.LogWarning("Upgrade WebSocket rechazado — sesión ya activa (4002)");
             // Debe aceptar el upgrade antes de enviar el close frame.
             var busyWs = await context.WebSockets.AcceptWebSocketAsync();
             await busyWs.CloseAsync(
@@ -87,7 +86,7 @@ public sealed class AcwfWebSocketMiddleware
         try
         {
             webSocket = await context.WebSockets.AcceptWebSocketAsync();
-            _logger.LogInformation("WebSocket session opened: {SessionId}", sessionId);
+            _logger.LogInformation("Sesión WebSocket abierta: {SessionId}", sessionId);
 
             var handler = new AcwfSessionHandler(depositService, watcherService, _logger, sessionId, _options.WatchDirectory, _options.FirmaTimeoutSeconds);
             await handler.HandleAsync(webSocket, context.RequestAborted);
@@ -99,7 +98,7 @@ public sealed class AcwfWebSocketMiddleware
 
             if (webSocket is not null)
             {
-                _logger.LogInformation("WebSocket session closed: {SessionId}", sessionId);
+                _logger.LogInformation("Sesión WebSocket cerrada: {SessionId}", sessionId);
             }
         }
     }

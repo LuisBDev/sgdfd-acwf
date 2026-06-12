@@ -38,7 +38,7 @@ public sealed class FirmaWatcherService : IFirmaWatcherService
     public void StartWatching(string originalFilename)
     {
         _expectedFilename = Path.GetFileNameWithoutExtension(originalFilename) + "[F].pdf";
-        _logger.LogInformation("FirmaWatcher started. Expecting file: {ExpectedFile}", _expectedFilename);
+        _logger.LogInformation("FirmaWatcher iniciado. Esperando archivo: {ExpectedFile}", _expectedFilename);
 
         _watcher = new FileSystemWatcher(_options.WatchDirectory)
         {
@@ -68,7 +68,7 @@ public sealed class FirmaWatcherService : IFirmaWatcherService
         if (!string.Equals(Path.GetFileName(e.FullPath), _expectedFilename, StringComparison.OrdinalIgnoreCase))
             return;
 
-        _logger.LogInformation("Firma file event detected: {FilePath}", e.FullPath);
+        _logger.LogInformation("Evento de archivo de firma detectado: {FilePath}", e.FullPath);
 
         // Cancelar timeout — el archivo fue detectado.
         _timeoutCts?.Cancel();
@@ -86,14 +86,14 @@ public sealed class FirmaWatcherService : IFirmaWatcherService
                 // Intentar abrir con FileShare.Read para verificar que el archivo es accesible.
                 await using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
                 // Archivo accesible — escribir evento de éxito.
-                _logger.LogInformation("Firma file is readable after {Attempt} attempt(s): {FilePath}", i + 1, path);
+                _logger.LogInformation("Archivo de firma legible tras {Attempt} intento(s): {FilePath}", i + 1, path);
                 await _channel.Writer.WriteAsync(new FirmaEvent(FirmaEventType.FileReady, path)).ConfigureAwait(false);
                 return;
             }
             catch (IOException)
             {
                 _logger.LogWarning(
-                    "Firma file locked (attempt {Attempt}/{Max}): {FilePath}",
+                    "Archivo de firma bloqueado (intento {Attempt}/{Max}): {FilePath}",
                     i + 1, BackoffDelaysMs.Length, path);
 
                 if (i < BackoffDelaysMs.Length - 1)
@@ -104,7 +104,7 @@ public sealed class FirmaWatcherService : IFirmaWatcherService
         }
 
         // Todos los retries agotados.
-        _logger.LogError("Firma file still locked after all retries: {FilePath}", path);
+        _logger.LogError("Archivo de firma aún bloqueado tras todos los reintentos: {FilePath}", path);
         await _channel.Writer.WriteAsync(
             new FirmaEvent(FirmaEventType.Error, path, "FILE_LOCKED")).ConfigureAwait(false);
     }
@@ -118,7 +118,7 @@ public sealed class FirmaWatcherService : IFirmaWatcherService
         }
 
         _logger.LogWarning(
-            "FirmaWatcher timeout after {Seconds}s for {Filename}",
+            "FirmaWatcher agotó el tiempo de espera tras {Seconds}s para {Filename}",
             _options.FirmaTimeoutSeconds, originalFilename);
 
         _channel.Writer.TryWrite(new FirmaEvent(FirmaEventType.Timeout, string.Empty));

@@ -11,7 +11,7 @@ using Velopack;
 // Alias para evitar ambigüedad con Velopack.UpdateOptions
 using AppUpdateOptions = ACWF.Configuration.UpdateOptions;
 
-// Paso 1: Inicialización de Velopack — DEBE ser la primera instrucción.
+// Inicialización de Velopack — DEBE ser la primera instrucción.
 // Maneja eventos de ciclo de vida install/update/uninstall y puede salir del proceso.
 VelopackApp.Build()
     .WithFirstRun(_ =>
@@ -33,12 +33,12 @@ VelopackApp.Build()
     })
     .Run();
 
-// Paso 1b: Si se lanzó vía URI scheme, inferir el environment del nombre del scheme.
+// Si se lanzó vía URI scheme, inferir el environment del nombre del scheme.
 string? uriArg = args.SkipWhile(a => a != "--uri-invoke").Skip(1).FirstOrDefault();
 if (uriArg is not null && uriArg.StartsWith("acwf-dev", StringComparison.OrdinalIgnoreCase))
     Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
 
-// Paso 2: Determinar el environment y los identificadores derivados.
+// Determinar el environment y los identificadores derivados.
 string env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
     ?? Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT")
     ?? "Production";
@@ -55,10 +55,10 @@ string mutexSuffix = string.Equals(env, "Development", StringComparison.OrdinalI
     ? "Dev"
     : "Prod";
 
-// Paso 3: Guard de única instancia — salir silenciosamente si otra instancia de esta variante está corriendo.
+// Guard de única instancia — salir silenciosamente si otra instancia de esta variante está corriendo.
 using IDisposable instanceGuard = InstanceGuard.Acquire(mutexSuffix);
 
-// Paso 4: Construir el ASP.NET Core Generic Host.
+// Construir el ASP.NET Core Generic Host.
 var builder = WebApplication.CreateBuilder(args);
 
 builder.WebHost.UseKestrel(o =>
@@ -67,7 +67,7 @@ builder.WebHost.UseKestrel(o =>
     o.ListenLocalhost(port);
 });
 
-// Paso 5: Configurar Serilog como proveedor de logging.
+// Configurar Serilog como proveedor de logging.
 string logDir = System.IO.Path.Combine(
     Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
     packId,
@@ -85,7 +85,7 @@ builder.Host.UseSerilog((ctx, cfg) =>
     cfg.WriteTo.Console();
 });
 
-// Paso 6: Registrar todos los servicios.
+// Registrar todos los servicios.
 builder.Services.Configure<AcwfOptions>(builder.Configuration.GetSection("Acwf"));
 builder.Services.Configure<AppUpdateOptions>(builder.Configuration.GetSection("Update"));
 
@@ -106,12 +106,12 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<UpdateService>());
 // Lazy<IUpdateTrigger> rompe la dependencia circular entre TrayIconService y UpdateService.
 builder.Services.AddSingleton(sp => new Lazy<IUpdateTrigger>(() => sp.GetRequiredService<IUpdateTrigger>()));
 
-// Paso 7: Construir la aplicación y configurar el pipeline de middleware.
+// Construir la aplicación y configurar el pipeline de middleware.
 var app = builder.Build();
 app.UseWebSockets();
 app.UseMiddleware<AcwfWebSocketMiddleware>();
 
-// Paso 8: Escribir el archivo lock del puerto y registrar el URI scheme (idempotente en cada ejecución).
+// Escribir el archivo lock del puerto y registrar el URI scheme (idempotente en cada ejecución).
 var acwfOptions = app.Services.GetRequiredService<IOptions<AcwfOptions>>().Value;
 PortRegistry.Write(packId, acwfOptions.Port);
 
@@ -119,7 +119,7 @@ string exePathForScheme = Environment.ProcessPath
     ?? System.Reflection.Assembly.GetExecutingAssembly().Location;
 UriSchemeHelper.EnsureRegistered(uriScheme, exePathForScheme);
 
-// Paso 9: Registrar limpieza en apagado graceful.
+// Registrar limpieza en apagado graceful.
 var lifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
 lifetime.ApplicationStopping.Register(() =>
 {
@@ -132,5 +132,5 @@ app.Logger.LogInformation(
     System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "0.1.0",
     env, packId, acwfOptions.Port);
 
-// Paso 10: Ejecutar — bloquea hasta que el host se apaga.
+// Ejecutar — bloquea hasta que el host se apaga.
 app.Run();

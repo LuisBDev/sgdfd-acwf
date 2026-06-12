@@ -39,7 +39,7 @@ public sealed class FileDepositService : IFileDepositService
         catch (UnauthorizedAccessException ex)
         {
             _logger.LogCritical(ex,
-                "Cannot create or access watch directory {WatchDirectory}. PDF deposits will fail.",
+                "No se puede crear o acceder al directorio de vigilancia {WatchDirectory}. Los depósitos de PDF fallarán.",
                 _options.WatchDirectory);
             _trayNotifier.SetState(TrayState.Error);
             _dirUnavailable = true;
@@ -47,7 +47,7 @@ public sealed class FileDepositService : IFileDepositService
         catch (Exception ex)
         {
             _logger.LogCritical(ex,
-                "Unexpected error initializing watch directory {WatchDirectory}.",
+                "Error inesperado al inicializar el directorio de vigilancia {WatchDirectory}.",
                 _options.WatchDirectory);
             _trayNotifier.SetState(TrayState.Error);
             _dirUnavailable = true;
@@ -101,14 +101,14 @@ public sealed class FileDepositService : IFileDepositService
             }
 
             _logger.LogInformation(
-                "PDF written: {Filename}, {Bytes} bytes, path: {DestPath}",
+                "PDF escrito: {Filename}, {Bytes} bytes, ruta: {DestPath}",
                 filename, bytesWritten, destPath);
 
             return destPath;
         }
         catch (IOException ex)
         {
-            _logger.LogError(ex, "Failed to write PDF {Filename} to {WatchDirectory}", filename, _options.WatchDirectory);
+            _logger.LogError(ex, "Error al escribir el PDF {Filename} en {WatchDirectory}", filename, _options.WatchDirectory);
             throw new InvalidOperationException("WRITE_FAILED", ex);
         }
     }

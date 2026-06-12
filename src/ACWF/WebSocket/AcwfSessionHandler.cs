@@ -4,9 +4,7 @@ using System.Text.Json;
 using ACWF.Firma;
 using ACWF.WebSocket.Messages;
 using Microsoft.Extensions.Logging;
-
-// Alias para resolver ambigüedad: el namespace ACWF.System sombrearía System.Net/System.Text
-using NativeWebSocket = global::System.Net.WebSockets.WebSocket;
+using NativeWebSocket = System.Net.WebSockets.WebSocket;
 
 namespace ACWF.WebSocket;
 
@@ -51,7 +49,7 @@ public sealed class AcwfSessionHandler
 
     public async Task HandleAsync(NativeWebSocket webSocket, CancellationToken ct)
     {
-        _logger.LogInformation("[{SessionId}] Session started", _sessionId);
+        _logger.LogInformation("[{SessionId}] Sesión iniciada", _sessionId);
 
         try
         {
@@ -69,7 +67,7 @@ public sealed class AcwfSessionHandler
 
                 if (kind == FrameKind.Close)
                 {
-                    _logger.LogInformation("[{SessionId}] Client closed the connection", _sessionId);
+                    _logger.LogInformation("[{SessionId}] El cliente cerró la conexión", _sessionId);
                     break;
                 }
 
@@ -94,15 +92,15 @@ public sealed class AcwfSessionHandler
         }
         catch (OperationCanceledException)
         {
-            _logger.LogInformation("[{SessionId}] Session cancelled", _sessionId);
+            _logger.LogInformation("[{SessionId}] Sesión cancelada", _sessionId);
         }
         catch (WebSocketException ex) when (ex.WebSocketErrorCode == WebSocketError.ConnectionClosedPrematurely)
         {
-            _logger.LogWarning("[{SessionId}] WebSocket connection closed prematurely", _sessionId);
+            _logger.LogWarning("[{SessionId}] Conexión WebSocket cerrada prematuramente", _sessionId);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[{SessionId}] Unhandled exception in session handler", _sessionId);
+            _logger.LogError(ex, "[{SessionId}] Excepción no controlada en el manejador de sesión", _sessionId);
             try
             {
                 await SendErrorAndCloseAsync(webSocket, "INTERNAL_ERROR", ex.Message, 1011, ct);
@@ -112,7 +110,7 @@ public sealed class AcwfSessionHandler
         finally
         {
             _state = SessionState.Closed;
-            _logger.LogInformation("[{SessionId}] Session ended, final state: {State}", _sessionId, _state);
+            _logger.LogInformation("[{SessionId}] Sesión finalizada, estado final: {State}", _sessionId, _state);
         }
     }
 
@@ -130,12 +128,12 @@ public sealed class AcwfSessionHandler
                 if (authMsg is null) break;
                 _authToken = authMsg.Token;
                 _state = SessionState.Authenticated;
-                _logger.LogInformation("[{SessionId}] AUTH received, state -> Authenticated", _sessionId);
+                _logger.LogInformation("[{SessionId}] AUTH recibido, estado -> Authenticated", _sessionId);
                 await SendJsonAsync(webSocket, new AuthOkMessage(), AcwfJsonContext.Default.AuthOkMessage, ct);
                 break;
 
             case (SessionState.Connected, _):
-                _logger.LogWarning("[{SessionId}] Received {Type} before AUTH", _sessionId, messageType);
+                _logger.LogWarning("[{SessionId}] Se recibió {Type} antes de AUTH", _sessionId, messageType);
                 await SendErrorAndCloseAsync(webSocket, "AUTH_REQUIRED", "Authentication required before sending data", 1008, ct);
                 return;
 
@@ -146,7 +144,7 @@ public sealed class AcwfSessionHandler
                 _currentFilename = pdfMsg.Filename;
                 _state = SessionState.ReceivingFile;
                 _logger.LogInformation(
-                    "[{SessionId}] PDF_DOWNLOAD metadata received: {Filename} ({Size} bytes), state -> ReceivingFile",
+                    "[{SessionId}] Metadatos PDF_DOWNLOAD recibidos: {Filename} ({Size} bytes), estado -> ReceivingFile",
                     _sessionId, pdfMsg.Filename, pdfMsg.Size);
                 break;
 
@@ -155,13 +153,13 @@ public sealed class AcwfSessionHandler
                 var reqMsg = JsonSerializer.Deserialize(payload, AcwfJsonContext.Default.RequestSignedFileMessage);
                 if (reqMsg is null) break;
                 _state = SessionState.SendingFile;
-                _logger.LogInformation("[{SessionId}] REQUEST_SIGNED_FILE received, state -> SendingFile", _sessionId);
+                _logger.LogInformation("[{SessionId}] REQUEST_SIGNED_FILE recibido, estado -> SendingFile", _sessionId);
                 await SendSignedFileAsync(webSocket, reqMsg.Filename, ct);
                 return;
 
             default:
                 _logger.LogWarning(
-                    "[{SessionId}] Unexpected message type {Type} in state {State}",
+                    "[{SessionId}] Tipo de mensaje inesperado {Type} en estado {State}",
                     _sessionId, messageType, _state);
                 string errorCode = IsKnownMessageType(messageType) ? "UNEXPECTED_MESSAGE" : "UNKNOWN_MESSAGE_TYPE";
                 await SendErrorAndCloseAsync(webSocket, errorCode, $"Message type {messageType} not valid in state {_state}", 1011, ct);
@@ -176,13 +174,13 @@ public sealed class AcwfSessionHandler
     {
         if (_state != SessionState.ReceivingFile || _currentFilename is null)
         {
-            _logger.LogWarning("[{SessionId}] Received binary frame in unexpected state {State}", _sessionId, _state);
+            _logger.LogWarning("[{SessionId}] Se recibió un frame binario en estado inesperado {State}", _sessionId, _state);
             await SendErrorAndCloseAsync(webSocket, "UNEXPECTED_MESSAGE", "Binary frame received in wrong state", 1011, ct);
             return;
         }
 
         _logger.LogInformation(
-            "[{SessionId}] Receiving binary PDF frame for {Filename} ({Size} bytes)",
+            "[{SessionId}] Recibiendo frame binario PDF para {Filename} ({Size} bytes)",
             _sessionId, _currentFilename, data.Length);
 
         using var stream = new MemoryStream(data);
@@ -193,13 +191,13 @@ public sealed class AcwfSessionHandler
         }
         catch (ArgumentException ex)
         {
-            _logger.LogError(ex, "[{SessionId}] Invalid filename: {Filename}", _sessionId, _currentFilename);
+            _logger.LogError(ex, "[{SessionId}] Nombre de archivo inválido: {Filename}", _sessionId, _currentFilename);
             await SendErrorAndCloseAsync(webSocket, "INVALID_FILENAME", ex.Message, 1011, ct);
             return;
         }
         catch (InvalidOperationException ex) when (ex.Message == "WRITE_FAILED")
         {
-            _logger.LogError(ex, "[{SessionId}] Write failed for {Filename}", _sessionId, _currentFilename);
+            _logger.LogError(ex, "[{SessionId}] Error de escritura para {Filename}", _sessionId, _currentFilename);
             await SendErrorAndCloseAsync(webSocket, "WRITE_FAILED", "Could not write PDF to watch directory", 1011, ct);
             return;
         }
@@ -209,7 +207,7 @@ public sealed class AcwfSessionHandler
 
         _watcherService.StartWatching(_currentFilename);
         _state = SessionState.WatchingFirma;
-        _logger.LogInformation("[{SessionId}] File written to {Path}, state -> WatchingFirma", _sessionId, filePath);
+        _logger.LogInformation("[{SessionId}] Archivo escrito en {Path}, estado -> WatchingFirma", _sessionId, filePath);
 
         // Lanzar el watcher consumer concurrentemente (no bloquea el receive loop).
         _ = WatchFirmaAsync(webSocket, ct);
@@ -232,7 +230,7 @@ public sealed class AcwfSessionHandler
                         break;
 
                     case FirmaEventType.Timeout:
-                        _logger.LogWarning("[{SessionId}] FirmaWatcher timeout for {Filename}", _sessionId, _currentFilename);
+                        _logger.LogWarning("[{SessionId}] FirmaWatcher agotó el tiempo de espera para {Filename}", _sessionId, _currentFilename);
                         await SendJsonAsync(webSocket,
                             new FirmaTimeoutMessage(_currentFilename ?? string.Empty, _firmaTimeoutSeconds),
                             AcwfJsonContext.Default.FirmaTimeoutMessage, ct);
@@ -241,7 +239,7 @@ public sealed class AcwfSessionHandler
                         return;
 
                     case FirmaEventType.Error:
-                        _logger.LogError("[{SessionId}] FirmaWatcher error: {Error}", _sessionId, firmaEvent.ErrorMessage);
+                        _logger.LogError("[{SessionId}] Error de FirmaWatcher: {Error}", _sessionId, firmaEvent.ErrorMessage);
                         await SendErrorAndCloseAsync(webSocket, firmaEvent.ErrorMessage ?? "FILE_LOCKED", "Signed file is locked", 1011, ct);
                         return;
                 }
@@ -249,7 +247,7 @@ public sealed class AcwfSessionHandler
         }
         catch (OperationCanceledException)
         {
-            _logger.LogDebug("[{SessionId}] WatchFirmaAsync cancelled", _sessionId);
+            _logger.LogDebug("[{SessionId}] WatchFirmaAsync cancelado", _sessionId);
         }
     }
 
@@ -264,7 +262,7 @@ public sealed class AcwfSessionHandler
 
         if (!File.Exists(filePath))
         {
-            _logger.LogError("[{SessionId}] Signed file not found: {FilePath}", _sessionId, filePath);
+            _logger.LogError("[{SessionId}] Archivo firmado no encontrado: {FilePath}", _sessionId, filePath);
             await SendErrorAndCloseAsync(webSocket, "READ_FAILED", $"Signed file not found: {signedFilename}", 1011, ct);
             return;
         }
@@ -276,7 +274,7 @@ public sealed class AcwfSessionHandler
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[{SessionId}] Cannot stat signed file: {FilePath}", _sessionId, filePath);
+            _logger.LogError(ex, "[{SessionId}] No se puede obtener información del archivo firmado: {FilePath}", _sessionId, filePath);
             await SendErrorAndCloseAsync(webSocket, "READ_FAILED", "Cannot read signed file metadata", 1011, ct);
             return;
         }
@@ -308,12 +306,12 @@ public sealed class AcwfSessionHandler
             }
 
             _logger.LogInformation(
-                "[{SessionId}] SIGNED_FILE sent: {Filename} ({Size} bytes)",
+                "[{SessionId}] SIGNED_FILE enviado: {Filename} ({Size} bytes)",
                 _sessionId, Path.GetFileName(filePath), fileSize);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[{SessionId}] Failed to send signed file: {FilePath}", _sessionId, filePath);
+            _logger.LogError(ex, "[{SessionId}] Error al enviar el archivo firmado: {FilePath}", _sessionId, filePath);
             await SendErrorAndCloseAsync(webSocket, "READ_FAILED", "Error reading signed file", 1011, ct);
             return;
         }
@@ -352,7 +350,7 @@ public sealed class AcwfSessionHandler
     private static async Task SendJsonAsync<T>(
         NativeWebSocket webSocket,
         T message,
-        global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> typeInfo,
+        System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> typeInfo,
         CancellationToken ct)
     {
         byte[] json = JsonSerializer.SerializeToUtf8Bytes(message, typeInfo);
@@ -385,7 +383,7 @@ public sealed class AcwfSessionHandler
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "[{SessionId}] Error while sending error frame", _sessionId);
+            _logger.LogWarning(ex, "[{SessionId}] Error al enviar el frame de error", _sessionId);
         }
     }
 
