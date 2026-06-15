@@ -1,9 +1,19 @@
 name: Release Dev
 
+# Tags de desarrollo: vX.Y.Z-dev.N (pre-release SemVer).
+# Ejemplo: v1.2.3-dev.4   (filtro glob, no regex)
 on:
   push:
     tags:
-      - '*-dev.*'
+      - 'v[0-9]*-dev.*'
+
+permissions:
+  contents: write  # necesario para que vpk cree el GitHub Release
+
+env:
+  PACK_ID: ACWF-Dev
+  CHANNEL: dev
+  REPO_URL: https://github.com/LuisBDev/sgdfd-acwf
 
 jobs:
   release:
@@ -13,6 +23,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Deriva la versión SemVer (sin la 'v'); conserva el sufijo -dev.N (pre-release válido).
+      - name: Resolve version
+        id: ver
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}" -replace '^v', ''
+          echo "version=$version" >> $env:GITHUB_OUTPUT
+
       - name: Setup .NET 10
         uses: actions/setup-dotnet@v4
         with:
@@ -21,29 +39,51 @@ jobs:
       - name: Install Velopack CLI
         run: dotnet tool install -g vpk
 
+      # AcwfVariant=Dev se embebe en el assembly → el build instalado se identifica como dev
+      # (packId ACWF-Dev, channel dev) sin depender de ASPNETCORE_ENVIRONMENT.
       - name: Publish
-        env:
-          ASPNETCORE_ENVIRONMENT: Development
         run: |
           dotnet publish src/ACWF/ACWF.csproj `
             -c Release `
             -r win-x64 `
-            --self-contained false `
+            --self-contained true `
+            -p:Version=${{ steps.ver.outputs.version }} `
+            -p:AcwfVariant=Dev `
             -o publish/
+
+      # Descarga el feed pre-release existente del canal dev (deltas + merge de RELEASES).
+      - name: Download existing releases
+        continue-on-error: true
+        run: |
+          vpk download github `
+            --repoUrl ${{ env.REPO_URL }} `
+            --channel ${{ env.CHANNEL }} `
+            --token ${{ secrets.GITHUB_TOKEN }} `
+            --pre `
+            --outputDir releases/
 
       - name: Pack with Velopack
         run: |
           vpk pack `
-            --packId ACWF-Dev `
-            --packVersion ${{ github.ref_name }} `
+            --packId ${{ env.PACK_ID }} `
+            --packVersion ${{ steps.ver.outputs.version }} `
             --packDir publish/ `
-            --outputDir dist/ `
+            --outputDir releases/ `
+            --channel ${{ env.CHANNEL }} `
+            --mainExe ACWF.exe `
+            --packTitle "ACWF Dev" `
             --icon src/ACWF/acwf.ico
 
-      - name: Create GitHub Release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # vpk crea el GitHub Release marcado como pre-release y sube assets + manifiesto del canal dev.
+      - name: Upload to GitHub Releases
         run: |
-          gh release create ${{ github.ref_name }} dist/* `
-            --prerelease `
-            --title "ACWF Dev ${{ github.ref_name }}"
+          vpk upload github `
+            --repoUrl ${{ env.REPO_URL }} `
+            --channel ${{ env.CHANNEL }} `
+            --outputDir releases/ `
+            --token ${{ secrets.GITHUB_TOKEN }} `
+            --publish `
+            --pre `
+            --merge `
+            --releaseName "ACWF Dev ${{ github.ref_name }}" `
+            --tag ${{ github.ref_name }}

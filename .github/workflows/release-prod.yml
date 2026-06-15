@@ -1,12 +1,21 @@
 name: Release Production
 
+# Tags de producción: vX.Y.Z (SemVer estable, sin sufijo de pre-release).
+# Ejemplo: v1.2.3
+# Nota: los filtros de tags son glob (no regex). Un tag dev (vX.Y.Z-dev.N) también
+# matchea 'v[0-9]*', por eso el step "Resolve version" omite los pre-release.
 on:
   push:
     tags:
       - 'v[0-9]*'
-      # Exclude pre-release tags such as v1.0.0-beta or v1.0.0-dev.1
-      # GitHub Actions tag filters do not support negative lookahead;
-      # the job step below gates on exact semver production tags.
+
+permissions:
+  contents: write  # necesario para que vpk cree el GitHub Release
+
+env:
+  PACK_ID: ACWF
+  CHANNEL: stable
+  REPO_URL: https://github.com/LuisBDev/sgdfd-acwf
 
 jobs:
   release:
@@ -16,45 +25,81 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate production tag
+      # Valida el tag y deriva la versión SemVer (sin la 'v').
+      # Si el tag trae sufijo de pre-release (-/+), se omite limpiamente (no es prod).
+      - name: Resolve version
+        id: ver
         shell: pwsh
         run: |
           $tag = "${{ github.ref_name }}"
-          if ($tag -match '[-+]') {
-            Write-Host "Tag '$tag' looks like a pre-release. Skipping production release."
-            exit 1
+          $version = $tag -replace '^v', ''
+          if ($version -match '[-+]') {
+            Write-Host "Tag '$tag' es pre-release — se omite el release de producción."
+            echo "skip=true" >> $env:GITHUB_OUTPUT
+          } else {
+            echo "skip=false" >> $env:GITHUB_OUTPUT
+            echo "version=$version" >> $env:GITHUB_OUTPUT
           }
 
       - name: Setup .NET 10
+        if: steps.ver.outputs.skip == 'false'
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.x'
 
       - name: Install Velopack CLI
+        if: steps.ver.outputs.skip == 'false'
         run: dotnet tool install -g vpk
 
+      # Self-contained: el instalador trae el runtime; el firmante no instala .NET 10 aparte.
+      # AcwfVariant=Prod se embebe en el assembly → el build instalado se identifica como prod
+      # (packId ACWF, channel stable) sin depender de ASPNETCORE_ENVIRONMENT.
       - name: Publish
-        env:
-          ASPNETCORE_ENVIRONMENT: Production
+        if: steps.ver.outputs.skip == 'false'
         run: |
           dotnet publish src/ACWF/ACWF.csproj `
             -c Release `
             -r win-x64 `
-            --self-contained false `
+            --self-contained true `
+            -p:Version=${{ steps.ver.outputs.version }} `
+            -p:AcwfVariant=Prod `
             -o publish/
 
+      # Descarga el feed existente del canal para generar deltas y mergear RELEASES.
+      # En el primer release no hay nada que descargar: no debe fallar el job.
+      - name: Download existing releases
+        if: steps.ver.outputs.skip == 'false'
+        continue-on-error: true
+        run: |
+          vpk download github `
+            --repoUrl ${{ env.REPO_URL }} `
+            --channel ${{ env.CHANNEL }} `
+            --token ${{ secrets.GITHUB_TOKEN }} `
+            --outputDir releases/
+
       - name: Pack with Velopack
+        if: steps.ver.outputs.skip == 'false'
         run: |
           vpk pack `
-            --packId ACWF `
-            --packVersion ${{ github.ref_name }} `
+            --packId ${{ env.PACK_ID }} `
+            --packVersion ${{ steps.ver.outputs.version }} `
             --packDir publish/ `
-            --outputDir dist/ `
+            --outputDir releases/ `
+            --channel ${{ env.CHANNEL }} `
+            --mainExe ACWF.exe `
+            --packTitle "ACWF" `
             --icon src/ACWF/acwf.ico
 
-      - name: Create GitHub Release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # vpk crea el GitHub Release (estable) y sube los assets + manifiesto del canal.
+      - name: Upload to GitHub Releases
+        if: steps.ver.outputs.skip == 'false'
         run: |
-          gh release create ${{ github.ref_name }} dist/* `
-            --title "ACWF ${{ github.ref_name }}"
+          vpk upload github `
+            --repoUrl ${{ env.REPO_URL }} `
+            --channel ${{ env.CHANNEL }} `
+            --outputDir releases/ `
+            --token ${{ secrets.GITHUB_TOKEN }} `
+            --publish `
+            --merge `
+            --releaseName "ACWF ${{ github.ref_name }}" `
+            --tag ${{ github.ref_name }}
