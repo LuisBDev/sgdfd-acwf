@@ -6,7 +6,7 @@ namespace ACWF.Update;
 
 /// <summary>
 /// Ventana WinForms no-modal que muestra el estado del update y permite al usuario aplicar un update pendiente.
-/// Se abre desde el context menu del tray icon.
+/// Se abre desde el context menu del tray Icon.
 /// </summary>
 public sealed class UpdateWindow : Form
 {
