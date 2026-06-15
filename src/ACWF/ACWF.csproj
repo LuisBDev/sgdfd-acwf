@@ -10,7 +10,19 @@
     <FileVersion>0.1.0</FileVersion>
     <Version>0.1.0</Version>
     <ApplicationIcon>acwf.ico</ApplicationIcon>
+
+    <!--
+      Variante horneada en el build (Dev | Prod). CI la pasa con -p:AcwfVariant=Dev|Prod.
+      Se embebe como metadata del assembly y el runtime la lee para decidir
+      environment/packId/channel SIN depender de ASPNETCORE_ENVIRONMENT (que no
+      sobrevive a la instalación). Por defecto Prod (builds locales / dotnet run).
+    -->
+    <AcwfVariant Condition="'$(AcwfVariant)' == ''">Prod</AcwfVariant>
   </PropertyGroup>
+
+  <ItemGroup>
+    <AssemblyMetadata Include="AcwfVariant" Value="$(AcwfVariant)" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Velopack" Version="1.2.0" />

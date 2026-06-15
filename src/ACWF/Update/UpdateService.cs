@@ -1,6 +1,7 @@
 using ACWF.Tray;
 using Microsoft.Extensions.Options;
 using Velopack;
+using Velopack.Sources;
 // Evitar ambigüedad con Velopack.UpdateOptions
 using AppUpdateOptions = ACWF.Configuration.UpdateOptions;
 using VelopackUpdateOptions = Velopack.UpdateOptions;
@@ -87,12 +88,22 @@ public sealed class UpdateService : BackgroundService, IUpdateTrigger
 
         try
         {
-            _logger.LogInformation("Verificando actualizaciones en {RepoUrl}", _options.RepoUrl);
+            _logger.LogInformation(
+                "Verificando actualizaciones en {RepoUrl} (canal={Channel}, prerelease={Pre})",
+                _options.RepoUrl, _options.Channel, _options.IncludePrerelease);
 
-            _updateManager = new UpdateManager(_options.RepoUrl, new VelopackUpdateOptions
+            // Fuente de GitHub Releases: lee la API de releases del repo.
+            // prerelease=true hace que la variante dev considere releases marcados como pre-release.
+            var source = new GithubSource(
+                _options.RepoUrl,
+                string.IsNullOrWhiteSpace(_options.AccessToken) ? null : _options.AccessToken,
+                _options.IncludePrerelease);
+
+            _updateManager = new UpdateManager(source, new VelopackUpdateOptions
             {
                 AllowVersionDowngrade = false,
-                ExplicitChannel = _options.IncludePrerelease ? "pre" : null
+                // El canal debe coincidir con el --channel usado en CI (stable / dev).
+                ExplicitChannel = string.IsNullOrWhiteSpace(_options.Channel) ? null : _options.Channel
             });
 
             var updateInfo = await _updateManager.CheckForUpdatesAsync().ConfigureAwait(false);

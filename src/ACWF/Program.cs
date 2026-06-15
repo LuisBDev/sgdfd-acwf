@@ -4,6 +4,7 @@ using ACWF.Hosting;
 using ACWF.Tray;
 using ACWF.Update;
 using ACWF.WebSocket;
+using System.Reflection;
 using Microsoft.Extensions.Options;
 using Serilog;
 using Velopack;
@@ -37,6 +38,22 @@ VelopackApp.Build()
 string? uriArg = args.SkipWhile(a => a != "--uri-invoke").Skip(1).FirstOrDefault();
 if (uriArg is not null && uriArg.StartsWith("acwf-dev", StringComparison.OrdinalIgnoreCase))
     Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
+
+// Variante horneada en el build (AssemblyMetadata "AcwfVariant": Dev | Prod).
+// Es la fuente de verdad para un build INSTALADO, que no tiene ASPNETCORE_ENVIRONMENT.
+// Solo aplica si el environment no fue fijado antes (por URI o por env var en dotnet run).
+string bakedVariant = System.Reflection.Assembly.GetEntryAssembly()?
+    .GetCustomAttributes<System.Reflection.AssemblyMetadataAttribute>()
+    .FirstOrDefault(a => a.Key == "AcwfVariant")?.Value
+    ?? "Prod";
+
+if (Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") is null
+    && Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") is null)
+{
+    Environment.SetEnvironmentVariable(
+        "ASPNETCORE_ENVIRONMENT",
+        bakedVariant.Equals("Dev", StringComparison.OrdinalIgnoreCase) ? "Development" : "Production");
+}
 
 // Determinar el environment y los identificadores derivados.
 string env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
