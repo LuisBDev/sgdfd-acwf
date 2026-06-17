@@ -43,10 +43,24 @@ public sealed class AcwfWebSocketMiddleware
             return;
         }
 
-        // Debe ser un WebSocket upgrade request.
+        // Non-WS request on /acwf → health check (no session gate).
         if (!context.WebSockets.IsWebSocketRequest)
         {
-            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            string origin = context.Request.Headers.Origin.ToString();
+            if (IsOriginAllowed(origin))
+            {
+                context.Response.Headers["Access-Control-Allow-Origin"] = origin;
+            }
+
+            if (HttpMethods.IsOptions(context.Request.Method))
+            {
+                context.Response.StatusCode = StatusCodes.Status204NoContent;
+                return;
+            }
+
+            context.Response.StatusCode = StatusCodes.Status200OK;
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsync("{\"status\":\"ok\"}", context.RequestAborted);
             return;
         }
 
@@ -106,6 +120,7 @@ public sealed class AcwfWebSocketMiddleware
     private bool IsOriginAllowed(string origin)
     {
         if (_options.AllowedOrigins.Length == 0) return false;
+        if (_options.AllowedOrigins.Contains("*")) return true;
 
         foreach (var allowed in _options.AllowedOrigins)
         {
