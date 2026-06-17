@@ -109,8 +109,14 @@ public sealed class AcwfSessionHandler
         }
         finally
         {
+            if (_state != SessionState.Idle && _currentFilename is not null)
+            {
+                _logger.LogInformation("[{SessionId}] Sesión interrumpida en estado {State}, limpiando archivos", _sessionId, _state);
+                _depositService.Cleanup(_currentFilename);
+            }
+
             _state = SessionState.Closed;
-            _logger.LogInformation("[{SessionId}] Sesión finalizada, estado final: {State}", _sessionId, _state);
+            _logger.LogInformation("[{SessionId}] Sesión finalizada", _sessionId);
         }
     }
 
@@ -247,7 +253,6 @@ public sealed class AcwfSessionHandler
                             new FirmaTimeoutMessage(_currentFilename ?? string.Empty, _firmaTimeoutSeconds),
                             AcwfJsonContext.Default.FirmaTimeoutMessage, ct);
                         await CloseWebSocketAsync(webSocket, WebSocketCloseStatus.NormalClosure, "Firma timeout", ct);
-                        _state = SessionState.Idle;
                         return;
 
                     case FirmaEventType.Error:
