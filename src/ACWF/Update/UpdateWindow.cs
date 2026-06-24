@@ -17,11 +17,11 @@ public sealed class UpdateWindow : Form
     private readonly ProgressBar _pbDownload;
     private readonly Timer _refreshTimer;
     private readonly ISessionGate _sessionGate;
-    private readonly UpdateService _updateService;
+    private readonly IUpdateTrigger _updateTrigger;
 
-    public UpdateWindow(UpdateService updateService, ISessionGate sessionGate, string currentVersion)
+    public UpdateWindow(IUpdateTrigger updateTrigger, ISessionGate sessionGate, string currentVersion)
     {
-        _updateService = updateService;
+        _updateTrigger = updateTrigger;
         _sessionGate = sessionGate;
 
         Text = "ACWF — Update";
@@ -68,10 +68,10 @@ public sealed class UpdateWindow : Form
 
     private void OnRefreshTick(object? sender, EventArgs e)
     {
-        var progress = _updateService.LastProgress;
+        var progress = _updateTrigger.LastProgress;
         _pbDownload.Value = Math.Min(progress, 100);
 
-        if (_updateService.HasPendingUpdate)
+        if (_updateTrigger.HasPendingUpdate)
         {
             _lblStatus.Text = string.Empty;
             _btnApply.Enabled = !_sessionGate.IsActive;
@@ -90,7 +90,7 @@ public sealed class UpdateWindow : Form
             return;
         }
 
-        _updateService.ApplyUpdate();
+        _updateTrigger.ApplyUpdate();
     }
 
     protected override void Dispose(bool disposing)
