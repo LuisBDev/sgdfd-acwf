@@ -11,7 +11,7 @@ namespace ACWF.Firma;
 /// </summary>
 public sealed class FirmaWatcherService : IFirmaWatcherService
 {
-    // Delays de exponential backoff: 50, 100, 200, 400, 800 ms (5 retries máximo)
+    // Esperas progresivas entre reintentos: 50, 100, 200, 400, 800 ms (5 intentos máximo)
     private static readonly int[] BackoffDelaysMs = [50, 100, 200, 400, 800];
 
     private readonly Channel<FirmaEvent> _channel = Channel.CreateUnbounded<FirmaEvent>(
@@ -34,15 +34,15 @@ public sealed class FirmaWatcherService : IFirmaWatcherService
 
     public ChannelReader<FirmaEvent> Events => _channel.Reader;
 
-    public void StartWatching(string originalFilename)
+    public void StartWatching(string originalFilename, string signedSuffix = "[F]")
     {
-        _expectedFilename = Path.GetFileNameWithoutExtension(originalFilename) + "[F].pdf";
+        _expectedFilename = Path.GetFileNameWithoutExtension(originalFilename) + signedSuffix + ".pdf";
         _logger.LogInformation("FirmaWatcher iniciado. Esperando archivo: {ExpectedFile}", _expectedFilename);
 
         _watcher = new FileSystemWatcher(_options.WatchDirectory)
         {
             NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite,
-            Filter = "*[F].pdf",
+            Filter = $"*{signedSuffix}.pdf",
             EnableRaisingEvents = true
         };
         _watcher.Created += OnFileEvent;
@@ -51,7 +51,7 @@ public sealed class FirmaWatcherService : IFirmaWatcherService
         _timeoutCts = new CancellationTokenSource();
         var timeoutToken = _timeoutCts.Token;
 
-        // Programar la tarea de timeout.
+        // Timeout programado para la espera de firma.
         _ = Task.Delay(TimeSpan.FromSeconds(_options.FirmaTimeoutSeconds), timeoutToken)
             .ContinueWith(
                 t => OnTimeout(t, originalFilename),
@@ -89,7 +89,7 @@ public sealed class FirmaWatcherService : IFirmaWatcherService
         // Cancelar timeout — el archivo fue detectado.
         _timeoutCts?.Cancel();
 
-        // Retry-read en thread pool para manejar race condition con FirmaONPE todavía escribiendo.
+        // Reintentar lectura en segundo plano por posible contención con FirmaONPE.
         _ = Task.Run(() => TryReadFileWithRetryAsync(e.FullPath));
     }
 
@@ -114,7 +114,7 @@ public sealed class FirmaWatcherService : IFirmaWatcherService
                 if (i < BackoffDelaysMs.Length - 1) await Task.Delay(BackoffDelaysMs[i]).ConfigureAwait(false);
             }
 
-        // Todos los retries agotados.
+        // Todos los reintentos agotados.
         _logger.LogError("Archivo de firma aún bloqueado tras todos los reintentos: {FilePath}", path);
         await _channel.Writer.WriteAsync(
             new FirmaEvent(FirmaEventType.Error, path, "FILE_LOCKED")).ConfigureAwait(false);

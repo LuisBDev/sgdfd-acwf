@@ -30,7 +30,7 @@ public sealed class FileDepositService : IFileDepositService
 
     public async Task<string> DepositAsync(string filename, Stream content, CancellationToken ct)
     {
-        // Validar filename — rechazar path traversal y rutas absolutas.
+        // Validar nombre de archivo: rechazar path traversal y rutas absolutas.
         if (string.IsNullOrWhiteSpace(filename)
             || filename.Contains("..")
             || filename.Contains(Path.DirectorySeparatorChar)
@@ -42,7 +42,7 @@ public sealed class FileDepositService : IFileDepositService
 
         var destPath = Path.Combine(_options.WatchDirectory, filename);
 
-        // Guard de path traversal: confirmar que la ruta resuelta está dentro de WatchDirectory.
+        // Verificar que la ruta resuelta esté dentro de WatchDirectory.
         var watchDirNormalized = Path.GetFullPath(_options.WatchDirectory);
         var destNormalized = Path.GetFullPath(destPath);
         if (!destNormalized.StartsWith(watchDirNormalized, StringComparison.OrdinalIgnoreCase))
@@ -80,11 +80,11 @@ public sealed class FileDepositService : IFileDepositService
         }
     }
 
-    public void Cleanup(string originalFilename)
+    public void Cleanup(string originalFilename, string signedSuffix = "[F]")
     {
         var baseName = Path.GetFileNameWithoutExtension(originalFilename);
         var originalPath = Path.Combine(_options.WatchDirectory, originalFilename);
-        var signedPath = Path.Combine(_options.WatchDirectory, $"{baseName}[F].pdf");
+        var signedPath = Path.Combine(_options.WatchDirectory, $"{baseName}{signedSuffix}.pdf");
 
         TryDelete(originalPath);
         TryDelete(signedPath);
