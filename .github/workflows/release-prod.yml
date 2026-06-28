@@ -13,9 +13,9 @@ permissions:
   contents: write  # necesario para que vpk cree el GitHub Release
 
 env:
-  PACK_ID: ACWF
+  PACK_ID: ACD
   CHANNEL: stable
-  REPO_URL: https://github.com/LuisBDev/sgdfd-acwf
+  REPO_URL: https://github.com/LuisBDev/sgdfd-acd
 
 jobs:
   release:
@@ -52,17 +52,17 @@ jobs:
         run: dotnet tool install -g vpk
 
       # Self-contained: el instalador trae el runtime; el firmante no instala .NET 10 aparte.
-      # AcwfVariant=Prod se embebe en el assembly → el build instalado se identifica como prod
-      # (packId ACWF, channel stable) sin depender de ASPNETCORE_ENVIRONMENT.
+      # AcdVariant=Prod se embebe en el assembly → el build instalado se identifica como prod
+      # (packId ACD, channel stable) sin depender de ASPNETCORE_ENVIRONMENT.
       - name: Publish
         if: steps.ver.outputs.skip == 'false'
         run: |
-          dotnet publish src/ACWF/ACWF.csproj `
+          dotnet publish src/ACD/ACD.csproj `
             -c Release `
             -r win-x64 `
             --self-contained true `
             -p:Version=${{ steps.ver.outputs.version }} `
-            -p:AcwfVariant=Prod `
+            -p:AcdVariant=Prod `
             -o publish/
 
       # Descarga el feed existente del canal para generar deltas y mergear RELEASES.
@@ -86,9 +86,9 @@ jobs:
             --packDir publish/ `
             --outputDir releases/ `
             --channel ${{ env.CHANNEL }} `
-            --mainExe ACWF.exe `
-            --packTitle "ACWF" `
-            --icon src/ACWF/acwf.ico
+            --mainExe ACD.exe `
+            --packTitle "ACD" `
+            --icon src/ACD/acd.ico
 
       # vpk crea el GitHub Release (estable) y sube los assets + manifiesto del canal.
       - name: Upload to GitHub Releases
@@ -101,5 +101,5 @@ jobs:
             --token ${{ secrets.GITHUB_TOKEN }} `
             --publish `
             --merge `
-            --releaseName "ACWF ${{ github.ref_name }}" `
+            --releaseName "ACD ${{ github.ref_name }}" `
             --tag ${{ github.ref_name }}

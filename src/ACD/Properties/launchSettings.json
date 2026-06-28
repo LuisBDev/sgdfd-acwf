@@ -1,12 +1,12 @@
 {
   "profiles": {
-    "ACWF (Development)": {
+    "ACD (Development)": {
       "commandName": "Project",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       }
     },
-    "ACWF (Production)": {
+    "ACD (Production)": {
       "commandName": "Project",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Production"

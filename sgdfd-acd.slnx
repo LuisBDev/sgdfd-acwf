@@ -1,5 +1,5 @@
 <Solution>
     <Folder Name="/src/">
-        <Project Path="src/ACWF/ACWF.csproj"/>
+        <Project Path="src/ACD/ACD.csproj"/>
     </Folder>
 </Solution>

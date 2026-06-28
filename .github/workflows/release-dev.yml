@@ -11,9 +11,9 @@ permissions:
   contents: write  # necesario para que vpk cree el GitHub Release
 
 env:
-  PACK_ID: ACWF-Dev
+  PACK_ID: ACD-Dev
   CHANNEL: dev
-  REPO_URL: https://github.com/LuisBDev/sgdfd-acwf
+  REPO_URL: https://github.com/LuisBDev/sgdfd-acd
 
 jobs:
   release:
@@ -39,16 +39,16 @@ jobs:
       - name: Install Velopack CLI
         run: dotnet tool install -g vpk
 
-      # AcwfVariant=Dev se embebe en el assembly → el build instalado se identifica como dev
-      # (packId ACWF-Dev, channel dev) sin depender de ASPNETCORE_ENVIRONMENT.
+      # AcdVariant=Dev se embebe en el assembly → el build instalado se identifica como dev
+      # (packId ACD-Dev, channel dev) sin depender de ASPNETCORE_ENVIRONMENT.
       - name: Publish
         run: |
-          dotnet publish src/ACWF/ACWF.csproj `
+          dotnet publish src/ACD/ACD.csproj `
             -c Release `
             -r win-x64 `
             --self-contained true `
             -p:Version=${{ steps.ver.outputs.version }} `
-            -p:AcwfVariant=Dev `
+            -p:AcdVariant=Dev `
             -o publish/
 
       # Descarga el feed pre-release existente del canal dev (deltas + merge de RELEASES).
@@ -70,9 +70,9 @@ jobs:
             --packDir publish/ `
             --outputDir releases/ `
             --channel ${{ env.CHANNEL }} `
-            --mainExe ACWF.exe `
-            --packTitle "ACWF Dev" `
-            --icon src/ACWF/acwf.ico
+            --mainExe ACD.exe `
+            --packTitle "ACD Dev" `
+            --icon src/ACD/acd.ico
 
       # vpk crea el GitHub Release marcado como pre-release y sube assets + manifiesto del canal dev.
       - name: Upload to GitHub Releases
@@ -85,5 +85,5 @@ jobs:
             --publish `
             --pre `
             --merge `
-            --releaseName "ACWF Dev ${{ github.ref_name }}" `
+            --releaseName "ACD Dev ${{ github.ref_name }}" `
             --tag ${{ github.ref_name }}

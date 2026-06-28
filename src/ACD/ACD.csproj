@@ -4,22 +4,22 @@
         <OutputType>Exe</OutputType>
         <TargetFramework>net10.0-windows</TargetFramework>
         <UseWindowsForms>true</UseWindowsForms>
-        <AssemblyName>ACWF</AssemblyName>
-        <RootNamespace>ACWF</RootNamespace>
+        <AssemblyName>ACD</AssemblyName>
+        <RootNamespace>ACD</RootNamespace>
         <AssemblyVersion>0.1.0</AssemblyVersion>
         <FileVersion>0.1.0</FileVersion>
         <Version>0.1.0</Version>
-        <ApplicationIcon>acwf.ico</ApplicationIcon>
+        <ApplicationIcon>acd.ico</ApplicationIcon>
 
-        <!-- Incrustado en el build por CI con -p:AcwfVariant=Dev|Prod.
+        <!-- Incrustado en el build por CI con -p:AcdVariant=Dev|Prod.
              El runtime lee el metadata del assembly para elegir environment/packId/channel
              porque ASPNETCORE_ENVIRONMENT no sobrevive a la instalación.
              Default Prod para builds locales. -->
-        <AcwfVariant Condition="'$(AcwfVariant)' == ''">Prod</AcwfVariant>
+        <AcdVariant Condition="'$(AcdVariant)' == ''">Prod</AcdVariant>
     </PropertyGroup>
 
     <ItemGroup>
-        <AssemblyMetadata Include="AcwfVariant" Value="$(AcwfVariant)"/>
+        <AssemblyMetadata Include="AcdVariant" Value="$(AcdVariant)"/>
     </ItemGroup>
 
     <ItemGroup>
