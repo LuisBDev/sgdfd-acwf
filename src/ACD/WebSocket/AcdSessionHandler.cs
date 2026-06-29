@@ -2,6 +2,7 @@ using System.Net.WebSockets;
 using System.Reflection;
 using System.Text.Json;
 using ACD.Firma;
+using ACD.Firma.Signing;
 using ACD.WebSocket.Messages;
 using NativeWebSocket = System.Net.WebSockets.WebSocket;
 
@@ -146,11 +147,18 @@ public sealed class AcdSessionHandler
             case (SessionState.Authenticated, MessageType.PdfDownload):
                 var pdfMsg = JsonSerializer.Deserialize(payload, AcdJsonContext.Default.PdfDownloadMessage);
                 if (pdfMsg is null) break;
-                _firmaHandler.SetCurrentFilename(pdfMsg.Filename);
+                if (!FirmaTipo.IsSupported(pdfMsg.Tipo))
+                {
+                    var code = string.IsNullOrEmpty(pdfMsg.Tipo) ? "MISSING_FIRMA_TIPO" : "UNSUPPORTED_FIRMA_TIPO";
+                    await WebSocketTransport.SendErrorAndCloseAsync(webSocket, code, $"Invalid firma type: {pdfMsg.Tipo ?? "(none)"}", 1011, _logger, _sessionId, ct);
+                    return;
+                }
+
+                _firmaHandler.SetCurrentFilename(pdfMsg.Filename, pdfMsg.Tipo);
                 _state = SessionState.ReceivingFile;
                 _logger.LogInformation(
-                    "[{SessionId}] Metadatos PDF_DOWNLOAD recibidos: {Filename} ({Size} bytes), estado -> ReceivingFile",
-                    _sessionId, pdfMsg.Filename, pdfMsg.Size);
+                    "[{SessionId}] Metadatos PDF_DOWNLOAD recibidos: {Filename} ({Size} bytes, tipo {Tipo}), estado -> ReceivingFile",
+                    _sessionId, pdfMsg.Filename, pdfMsg.Size, pdfMsg.Tipo);
                 break;
 
             // Estado WATCHING: REQUEST_SIGNED_FILE es válido.

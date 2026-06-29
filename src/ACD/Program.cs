@@ -1,6 +1,7 @@
 using System.Reflection;
 using ACD.Configuration;
 using ACD.Firma;
+using ACD.Firma.Signing;
 using ACD.Hosting;
 using ACD.Tray;
 using ACD.Update;
@@ -104,6 +105,12 @@ builder.Services.AddSingleton<ISessionGate, SessionGate>();
 builder.Services.AddSingleton<IAcdSessionHandlerFactory, AcdSessionHandlerFactory>();
 builder.Services.AddScoped<IFileDepositService, FileDepositService>();
 builder.Services.AddScoped<IFirmaWatcherService, FirmaWatcherService>();
+
+// Subsistema de firma (FirmaONPE).
+builder.Services.AddSingleton<IProcessRunner, ProcessRunner>();
+builder.Services.AddSingleton<IFirmaSignerResolver, RegistryFirmaSignerResolver>();
+builder.Services.AddSingleton<IFirmaCommandBuilder, FirmaOnpeCommandBuilder>();
+builder.Services.AddSingleton<IFirmaLauncher, FirmaLauncher>();
 
 builder.Services.AddSingleton<TrayIconService>();
 builder.Services.AddSingleton<ITrayStateNotifier>(sp => sp.GetRequiredService<TrayIconService>());

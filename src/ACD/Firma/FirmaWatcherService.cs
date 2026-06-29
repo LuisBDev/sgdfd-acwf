@@ -6,13 +6,13 @@ namespace ACD.Firma;
 
 /// <summary>
 ///     Observa el WatchDirectory en busca de un PDF firmado (sufijo [F].pdf).
-///     Usa FileSystemWatcher en un thread del pool, Channel&lt;FirmaEvent&gt; para
-///     marshalling seguro de eventos al async session loop.
+///     FirmaONPE crea el archivo vacío y bloqueado, y lo completa recién cuando el
+///     usuario ingresa su clave; por eso se espera a que quede completo y desbloqueado
+///     hasta el timeout global, no con reintentos cortos.
 /// </summary>
 public sealed class FirmaWatcherService : IFirmaWatcherService
 {
-    // Esperas progresivas entre reintentos: 50, 100, 200, 400, 800 ms (5 intentos máximo)
-    private static readonly int[] BackoffDelaysMs = [50, 100, 200, 400, 800];
+    private const int PollIntervalMs = 500;
 
     private readonly Channel<FirmaEvent> _channel = Channel.CreateUnbounded<FirmaEvent>(
         new UnboundedChannelOptions { SingleReader = true });
@@ -21,6 +21,7 @@ public sealed class FirmaWatcherService : IFirmaWatcherService
     private readonly AcdOptions _options;
     private string? _expectedFilename;
     private CancellationTokenSource? _timeoutCts;
+    private int _waitStarted;
 
     private FileSystemWatcher? _watcher;
 
@@ -37,6 +38,7 @@ public sealed class FirmaWatcherService : IFirmaWatcherService
     public void StartWatching(string originalFilename, string signedSuffix = "[F]")
     {
         _expectedFilename = Path.GetFileNameWithoutExtension(originalFilename) + signedSuffix + ".pdf";
+        _waitStarted = 0;
         _logger.LogInformation("FirmaWatcher iniciado. Esperando archivo: {ExpectedFile}", _expectedFilename);
 
         _watcher = new FileSystemWatcher(_options.WatchDirectory)
@@ -51,7 +53,6 @@ public sealed class FirmaWatcherService : IFirmaWatcherService
         _timeoutCts = new CancellationTokenSource();
         var timeoutToken = _timeoutCts.Token;
 
-        // Timeout programado para la espera de firma.
         _ = Task.Delay(TimeSpan.FromSeconds(_options.FirmaTimeoutSeconds), timeoutToken)
             .ContinueWith(
                 t => OnTimeout(t, originalFilename),
@@ -84,46 +85,64 @@ public sealed class FirmaWatcherService : IFirmaWatcherService
         if (!string.Equals(Path.GetFileName(e.FullPath), _expectedFilename, StringComparison.OrdinalIgnoreCase))
             return;
 
-        _logger.LogInformation("Evento de archivo de firma detectado: {FilePath}", e.FullPath);
+        // El archivo aparece vacío y bloqueado; arrancar la espera una sola vez.
+        if (Interlocked.Exchange(ref _waitStarted, 1) != 0) return;
 
-        // Cancelar timeout — el archivo fue detectado.
-        _timeoutCts?.Cancel();
-
-        // Reintentar lectura en segundo plano por posible contención con FirmaONPE.
-        _ = Task.Run(() => TryReadFileWithRetryAsync(e.FullPath));
+        _logger.LogInformation("Archivo de firma detectado, esperando a que se complete: {FilePath}", e.FullPath);
+        _ = WaitForSignedFileAsync(e.FullPath, _timeoutCts?.Token ?? CancellationToken.None);
     }
 
-    private async Task TryReadFileWithRetryAsync(string path)
+    // Espera a que el archivo esté desbloqueado y con tamaño estable (>0) entre dos lecturas.
+    private async Task WaitForSignedFileAsync(string path, CancellationToken token)
     {
-        for (var i = 0; i < BackoffDelaysMs.Length; i++)
-            try
-            {
-                // Intentar abrir con FileShare.Read para verificar que el archivo es accesible.
-                await using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-                // Archivo accesible — escribir evento de éxito.
-                _logger.LogInformation("Archivo de firma legible tras {Attempt} intento(s): {FilePath}", i + 1, path);
-                await _channel.Writer.WriteAsync(new FirmaEvent(FirmaEventType.FileReady, path)).ConfigureAwait(false);
-                return;
-            }
-            catch (IOException)
-            {
-                _logger.LogWarning(
-                    "Archivo de firma bloqueado (intento {Attempt}/{Max}): {FilePath}",
-                    i + 1, BackoffDelaysMs.Length, path);
+        var previousLength = -1L;
 
-                if (i < BackoffDelaysMs.Length - 1) await Task.Delay(BackoffDelaysMs[i]).ConfigureAwait(false);
-            }
+        try
+        {
+            while (!token.IsCancellationRequested)
+            {
+                var readable = TryGetReadableLength(path, out var length);
 
-        // Todos los reintentos agotados.
-        _logger.LogError("Archivo de firma aún bloqueado tras todos los reintentos: {FilePath}", path);
-        await _channel.Writer.WriteAsync(
-            new FirmaEvent(FirmaEventType.Error, path, "FILE_LOCKED")).ConfigureAwait(false);
+                if (readable && length == previousLength)
+                {
+                    _timeoutCts?.Cancel();
+                    _logger.LogInformation("Archivo de firma listo: {FilePath} ({Bytes} bytes)", path, length);
+                    await _channel.Writer.WriteAsync(new FirmaEvent(FirmaEventType.FileReady, path)).ConfigureAwait(false);
+                    return;
+                }
+
+                previousLength = readable ? length : -1;
+                await Task.Delay(PollIntervalMs, token).ConfigureAwait(false);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Timeout global o cierre de sesión — OnTimeout emite el evento Timeout.
+        }
+    }
+
+    private static bool TryGetReadableLength(string path, out long length)
+    {
+        length = 0;
+        try
+        {
+            using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+            length = fs.Length;
+            return length > 0;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
     }
 
     private void OnTimeout(Task completedTask, string originalFilename)
     {
         if (completedTask.IsCanceled)
-            // Archivo detectado antes del timeout — no hacer nada.
             return;
 
         _logger.LogWarning(

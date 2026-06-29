@@ -1,5 +1,6 @@
 using ACD.Configuration;
 using ACD.Firma;
+using ACD.Firma.Signing;
 using Microsoft.Extensions.Options;
 using NativeWebSocket = System.Net.WebSockets.WebSocket;
 
@@ -11,12 +12,17 @@ namespace ACD.WebSocket;
 /// </summary>
 public sealed class AcdSessionHandlerFactory : IAcdSessionHandlerFactory
 {
+    private readonly IFirmaLauncher _firmaLauncher;
     private readonly ILoggerFactory _loggerFactory;
     private readonly AcdOptions _options;
 
-    public AcdSessionHandlerFactory(IOptions<AcdOptions> options, ILoggerFactory loggerFactory)
+    public AcdSessionHandlerFactory(
+        IOptions<AcdOptions> options,
+        IFirmaLauncher firmaLauncher,
+        ILoggerFactory loggerFactory)
     {
         _options = options.Value;
+        _firmaLauncher = firmaLauncher;
         _loggerFactory = loggerFactory;
     }
 
@@ -29,6 +35,8 @@ public sealed class AcdSessionHandlerFactory : IAcdSessionHandlerFactory
         var firmaHandler = new FirmaWorkflowHandler(
             depositService,
             watcherService,
+            _firmaLauncher,
+            _options.Firma,
             _options.WatchDirectory,
             _options.FirmaTimeoutSeconds,
             _options.FirmaSignedSuffix,

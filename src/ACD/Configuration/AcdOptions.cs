@@ -7,4 +7,5 @@ public sealed class AcdOptions
     public int FirmaTimeoutSeconds { get; init; } = 300;
     public string[] AllowedOrigins { get; init; } = [];
     public string FirmaSignedSuffix { get; init; } = "[F]";
+    public FirmaOptions Firma { get; init; } = new();
 }

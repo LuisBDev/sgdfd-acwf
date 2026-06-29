@@ -16,7 +16,9 @@ public sealed record PdfDownloadMessage(
     [property: JsonPropertyName("type")] string Type,
     [property: JsonPropertyName("filename")]
     string Filename,
-    [property: JsonPropertyName("size")] long Size);
+    [property: JsonPropertyName("size")] long Size,
+    [property: JsonPropertyName("tipoFirma")]
+    string? Tipo = null);
 
 /// <summary>REQUEST_SIGNED_FILE — solicita el PDF firmado para enviarlo de vuelta.</summary>
 public sealed record RequestSignedFileMessage(

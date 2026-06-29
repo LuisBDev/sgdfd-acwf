@@ -1,4 +1,6 @@
 using System.Net.WebSockets;
+using ACD.Configuration;
+using ACD.Firma.Signing;
 using ACD.WebSocket;
 using ACD.WebSocket.Messages;
 using NativeWebSocket = System.Net.WebSockets.WebSocket;
@@ -14,6 +16,8 @@ namespace ACD.Firma;
 public sealed class FirmaWorkflowHandler
 {
     private readonly IFileDepositService _depositService;
+    private readonly IFirmaLauncher _firmaLauncher;
+    private readonly FirmaOptions _firmaOptions;
     private readonly string _firmaSignedSuffix;
     private readonly int _firmaTimeoutSeconds;
     private readonly ILogger _logger;
@@ -21,10 +25,13 @@ public sealed class FirmaWorkflowHandler
     private readonly string _watchDirectory;
     private readonly IFirmaWatcherService _watcherService;
     private string? _firmaFilePath;
+    private string? _requestedTipo;
 
     public FirmaWorkflowHandler(
         IFileDepositService deposit,
         IFirmaWatcherService watcher,
+        IFirmaLauncher firmaLauncher,
+        FirmaOptions firmaOptions,
         string watchDirectory,
         int firmaTimeoutSeconds,
         string firmaSignedSuffix,
@@ -33,6 +40,8 @@ public sealed class FirmaWorkflowHandler
     {
         _depositService = deposit;
         _watcherService = watcher;
+        _firmaLauncher = firmaLauncher;
+        _firmaOptions = firmaOptions;
         _watchDirectory = watchDirectory;
         _firmaTimeoutSeconds = firmaTimeoutSeconds;
         _firmaSignedSuffix = firmaSignedSuffix;
@@ -80,8 +89,30 @@ public sealed class FirmaWorkflowHandler
         // Confirmar recepción y comenzar a vigilar.
         await WebSocketTransport.SendJsonAsync(ws, new PdfReceivedMessage(CurrentFilename), AcdJsonContext.Default.PdfReceivedMessage, ct);
 
+        // El tipo de firma es crítico: sin él no se firma (validado en PDF_DOWNLOAD, guarda defensiva aquí).
+        if (_requestedTipo is null)
+        {
+            await WebSocketTransport.SendErrorAndCloseAsync(ws, "MISSING_FIRMA_TIPO", "Firma type is required", 1011, _logger, _sessionId, ct);
+            return SessionState.Closed;
+        }
+
+        // Armar el watcher antes de lanzar, para no perder el evento del [F].pdf.
         _watcherService.StartWatching(CurrentFilename, _firmaSignedSuffix);
         _logger.LogInformation("[{SessionId}] Archivo escrito en {Path}, estado -> WatchingFirma", _sessionId, filePath);
+
+        var firmaRequest = new FirmaRequest(
+            filePath,
+            _requestedTipo,
+            new FirmaInstitutionalData(
+                _firmaOptions.Area, _firmaOptions.Telefono, _firmaOptions.Anexo, _firmaOptions.Url));
+
+        var launch = _firmaLauncher.Launch(firmaRequest);
+        if (!launch.Success)
+        {
+            _logger.LogError("[{SessionId}] No se pudo lanzar el firmador: {Reason}", _sessionId, launch.ErrorMessage);
+            await WebSocketTransport.SendErrorAndCloseAsync(ws, "FIRMA_LAUNCH_FAILED", launch.ErrorMessage ?? "Could not launch signer", 1011, _logger, _sessionId, ct);
+            return SessionState.Closed;
+        }
 
         // Consumir eventos del watcher en segundo plano.
         _ = WatchFirmaAsync(ws, ct);
@@ -193,9 +224,10 @@ public sealed class FirmaWorkflowHandler
         return SessionState.WaitingCleanupConfirm;
     }
 
-    public void SetCurrentFilename(string filename)
+    public void SetCurrentFilename(string filename, string? tipo = null)
     {
         CurrentFilename = filename;
+        _requestedTipo = tipo;
     }
 
     public void Cleanup()
