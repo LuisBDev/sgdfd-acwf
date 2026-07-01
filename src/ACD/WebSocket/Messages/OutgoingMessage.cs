@@ -59,7 +59,9 @@ public sealed record FirmaTimeoutMessage(
 public sealed record ErrorMessage(
     [property: JsonPropertyName("code")] string Code,
     [property: JsonPropertyName("message")]
-    string Message)
+    string Message,
+    [property: JsonPropertyName("category")]
+    string Category)
 {
     [JsonPropertyName("type")] public string Type { get; init; } = MessageType.Error;
 }

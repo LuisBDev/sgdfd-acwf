@@ -58,7 +58,7 @@ public static class WebSocketTransport
         try
         {
             await SendJsonAsync(webSocket,
-                new ErrorMessage(code, message),
+                new ErrorMessage(code, message, ErrorCatalog.CategoryOf(code)),
                 AcdJsonContext.Default.ErrorMessage, ct);
 
             var status = closeCode switch

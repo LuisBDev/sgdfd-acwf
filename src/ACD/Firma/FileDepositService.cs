@@ -1,5 +1,6 @@
 using ACD.Configuration;
 using ACD.Tray;
+using ACD.WebSocket.Messages;
 using Microsoft.Extensions.Options;
 
 namespace ACD.Firma;
@@ -76,7 +77,7 @@ public sealed class FileDepositService : IFileDepositService
         catch (IOException ex)
         {
             _logger.LogError(ex, "Error al escribir el PDF {Filename} en {WatchDirectory}", filename, _options.WatchDirectory);
-            throw new InvalidOperationException("WRITE_FAILED", ex);
+            throw new InvalidOperationException(ErrorCatalog.WriteFailed, ex);
         }
     }
 

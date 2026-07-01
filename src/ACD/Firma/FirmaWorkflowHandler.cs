@@ -56,7 +56,7 @@ public sealed class FirmaWorkflowHandler
         if (CurrentFilename is null)
         {
             _logger.LogWarning("[{SessionId}] Se recibió un frame binario en estado inesperado", _sessionId);
-            await WebSocketTransport.SendErrorAndCloseAsync(ws, "UNEXPECTED_MESSAGE", "Binary frame received in wrong state", 1011, _logger, _sessionId, ct);
+            await WebSocketTransport.SendErrorAndCloseAsync(ws, ErrorCatalog.UnexpectedMessage, "Binary frame received in wrong state", 1011, _logger, _sessionId, ct);
             return SessionState.Closed;
         }
 
@@ -73,13 +73,13 @@ public sealed class FirmaWorkflowHandler
         catch (ArgumentException ex)
         {
             _logger.LogError(ex, "[{SessionId}] Nombre de archivo inválido: {Filename}", _sessionId, CurrentFilename);
-            await WebSocketTransport.SendErrorAndCloseAsync(ws, "INVALID_FILENAME", ex.Message, 1011, _logger, _sessionId, ct);
+            await WebSocketTransport.SendErrorAndCloseAsync(ws, ErrorCatalog.InvalidFilename, ex.Message, 1011, _logger, _sessionId, ct);
             return SessionState.Closed;
         }
-        catch (InvalidOperationException ex) when (ex.Message == "WRITE_FAILED")
+        catch (InvalidOperationException ex) when (ex.Message == ErrorCatalog.WriteFailed)
         {
             _logger.LogError(ex, "[{SessionId}] Error de escritura para {Filename}", _sessionId, CurrentFilename);
-            await WebSocketTransport.SendErrorAndCloseAsync(ws, "WRITE_FAILED", "Could not write PDF to watch directory", 1011, _logger, _sessionId, ct);
+            await WebSocketTransport.SendErrorAndCloseAsync(ws, ErrorCatalog.WriteFailed, "Could not write PDF to watch directory", 1011, _logger, _sessionId, ct);
             return SessionState.Closed;
         }
 
@@ -89,7 +89,7 @@ public sealed class FirmaWorkflowHandler
         // El tipo de firma es crítico: sin él no se firma (validado en PDF_DOWNLOAD, guarda defensiva aquí).
         if (_requestedTipo is null)
         {
-            await WebSocketTransport.SendErrorAndCloseAsync(ws, "MISSING_FIRMA_TIPO", "Firma type is required", 1011, _logger, _sessionId, ct);
+            await WebSocketTransport.SendErrorAndCloseAsync(ws, ErrorCatalog.MissingFirmaTipo, "Firma type is required", 1011, _logger, _sessionId, ct);
             return SessionState.Closed;
         }
 
@@ -107,7 +107,7 @@ public sealed class FirmaWorkflowHandler
         if (!launch.Success)
         {
             _logger.LogError("[{SessionId}] No se pudo lanzar el firmador: {Reason}", _sessionId, launch.ErrorMessage);
-            await WebSocketTransport.SendErrorAndCloseAsync(ws, "FIRMA_LAUNCH_FAILED", launch.ErrorMessage ?? "Could not launch signer", 1011, _logger, _sessionId, ct);
+            await WebSocketTransport.SendErrorAndCloseAsync(ws, ErrorCatalog.FirmaLaunchFailed, launch.ErrorMessage ?? "Could not launch signer", 1011, _logger, _sessionId, ct);
             return SessionState.Closed;
         }
 
@@ -142,7 +142,7 @@ public sealed class FirmaWorkflowHandler
 
                     case FirmaEventType.Error:
                         _logger.LogError("[{SessionId}] Error de FirmaWatcher: {Error}", _sessionId, firmaEvent.ErrorMessage);
-                        await WebSocketTransport.SendErrorAndCloseAsync(ws, firmaEvent.ErrorMessage ?? "FILE_LOCKED", "Signed file is locked", 1011, _logger, _sessionId, ct);
+                        await WebSocketTransport.SendErrorAndCloseAsync(ws, ErrorCatalog.FileLocked, firmaEvent.ErrorMessage ?? "Signed file is locked", 1011, _logger, _sessionId, ct);
                         return;
                 }
         }
@@ -164,7 +164,7 @@ public sealed class FirmaWorkflowHandler
         if (!File.Exists(filePath))
         {
             _logger.LogError("[{SessionId}] Archivo firmado no encontrado: {FilePath}", _sessionId, filePath);
-            await WebSocketTransport.SendErrorAndCloseAsync(ws, "READ_FAILED", $"Signed file not found: {signedFilename}", 1011, _logger, _sessionId, ct);
+            await WebSocketTransport.SendErrorAndCloseAsync(ws, ErrorCatalog.ReadFailed, $"Signed file not found: {signedFilename}", 1011, _logger, _sessionId, ct);
             return SessionState.Closed;
         }
 
@@ -176,7 +176,7 @@ public sealed class FirmaWorkflowHandler
         catch (Exception ex)
         {
             _logger.LogError(ex, "[{SessionId}] No se puede obtener información del archivo firmado: {FilePath}", _sessionId, filePath);
-            await WebSocketTransport.SendErrorAndCloseAsync(ws, "READ_FAILED", "Cannot read signed file metadata", 1011, _logger, _sessionId, ct);
+            await WebSocketTransport.SendErrorAndCloseAsync(ws, ErrorCatalog.ReadFailed, "Cannot read signed file metadata", 1011, _logger, _sessionId, ct);
             return SessionState.Closed;
         }
 
@@ -213,7 +213,7 @@ public sealed class FirmaWorkflowHandler
         catch (Exception ex)
         {
             _logger.LogError(ex, "[{SessionId}] Error al enviar el archivo firmado: {FilePath}", _sessionId, filePath);
-            await WebSocketTransport.SendErrorAndCloseAsync(ws, "READ_FAILED", "Error reading signed file", 1011, _logger, _sessionId, ct);
+            await WebSocketTransport.SendErrorAndCloseAsync(ws, ErrorCatalog.ReadFailed, "Error reading signed file", 1011, _logger, _sessionId, ct);
             return SessionState.Closed;
         }
 

@@ -66,7 +66,7 @@ public sealed class AcdSessionHandler
                     if (_state != SessionState.ReceivingFile || _firmaHandler.CurrentFilename is null)
                     {
                         _logger.LogWarning("[{SessionId}] Se recibió un frame binario en estado inesperado {State}", _sessionId, _state);
-                        await WebSocketTransport.SendErrorAndCloseAsync(webSocket, "UNEXPECTED_MESSAGE", "Binary frame received in wrong state", 1011, _logger, _sessionId, ct);
+                        await WebSocketTransport.SendErrorAndCloseAsync(webSocket, ErrorCatalog.UnexpectedMessage, "Binary frame received in wrong state", 1011, _logger, _sessionId, ct);
                         return;
                     }
 
@@ -80,7 +80,7 @@ public sealed class AcdSessionHandler
                 var baseMsg = JsonSerializer.Deserialize(payload, AcdJsonContext.Default.BaseMessage);
                 if (baseMsg is null)
                 {
-                    await WebSocketTransport.SendErrorAndCloseAsync(webSocket, "UNKNOWN_MESSAGE_TYPE", "Could not parse message type", 1011, _logger, _sessionId, ct);
+                    await WebSocketTransport.SendErrorAndCloseAsync(webSocket, ErrorCatalog.UnknownMessageType, "Could not parse message type", 1011, _logger, _sessionId, ct);
                     return;
                 }
 
@@ -100,7 +100,7 @@ public sealed class AcdSessionHandler
             _logger.LogError(ex, "[{SessionId}] Excepción no controlada en el manejador de sesión", _sessionId);
             try
             {
-                await WebSocketTransport.SendErrorAndCloseAsync(webSocket, "INTERNAL_ERROR", ex.Message, 1011, _logger, _sessionId, ct);
+                await WebSocketTransport.SendErrorAndCloseAsync(webSocket, ErrorCatalog.InternalError, ex.Message, 1011, _logger, _sessionId, ct);
             }
             catch
             {
@@ -134,7 +134,7 @@ public sealed class AcdSessionHandler
 
             case (SessionState.Connected, _):
                 _logger.LogWarning("[{SessionId}] Se recibió {Type} antes de AUTH", _sessionId, messageType);
-                await WebSocketTransport.SendErrorAndCloseAsync(webSocket, "AUTH_REQUIRED", "Authentication required before sending data", 1008, _logger, _sessionId, ct);
+                await WebSocketTransport.SendErrorAndCloseAsync(webSocket, ErrorCatalog.AuthRequired, "Authentication required before sending data", 1008, _logger, _sessionId, ct);
                 return;
 
             // Estado AUTHENTICATED: solo PDF_DOWNLOAD es válido.
@@ -143,7 +143,7 @@ public sealed class AcdSessionHandler
                 if (pdfMsg is null) break;
                 if (!FirmaTipo.IsSupported(pdfMsg.Tipo))
                 {
-                    var code = string.IsNullOrEmpty(pdfMsg.Tipo) ? "MISSING_FIRMA_TIPO" : "UNSUPPORTED_FIRMA_TIPO";
+                    var code = string.IsNullOrEmpty(pdfMsg.Tipo) ? ErrorCatalog.MissingFirmaTipo : ErrorCatalog.UnsupportedFirmaTipo;
                     await WebSocketTransport.SendErrorAndCloseAsync(webSocket, code, $"Invalid firma type: {pdfMsg.Tipo ?? "(none)"}", 1011, _logger, _sessionId, ct);
                     return;
                 }
@@ -168,7 +168,7 @@ public sealed class AcdSessionHandler
                 _logger.LogWarning(
                     "[{SessionId}] Tipo de mensaje inesperado {Type} en estado {State}",
                     _sessionId, messageType, _state);
-                var errorCode = IsKnownMessageType(messageType) ? "UNEXPECTED_MESSAGE" : "UNKNOWN_MESSAGE_TYPE";
+                var errorCode = IsKnownMessageType(messageType) ? ErrorCatalog.UnexpectedMessage : ErrorCatalog.UnknownMessageType;
                 await WebSocketTransport.SendErrorAndCloseAsync(webSocket, errorCode, $"Message type {messageType} not valid in state {_state}", 1011, _logger, _sessionId, ct);
                 return;
         }
